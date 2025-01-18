@@ -3,30 +3,25 @@ from typing import Tuple,Generator
 from numpy.typing import NDArray
 
 class Level(Enum):
-    # CERF levels
+    # CEFR levels
     A1 = 1
     A2 = 2
     B1 = 3
     B2 = 4
     C1 = 5
     C2 = 6
-
-    # Chinese high school levels
-    Junior = 7
-    Senior = 8
-
-def test_level(message_input:str) -> Tuple[Level,Level]:
+def test_level(message_input:str) -> Tuple[Level]:
     """
         Desc:
             Return the level of the user, according to the composition wrote from the user.
             
         Usecase:
             >>> test_level("We have somany good things to eat for dinner.")
-            (Level.A1, Level.junior)
+            (Level.A1)
             
     """
     
-    example:Tuple[Level,Level] = (Level.A1,Level.junior)
+    example:Tuple[Level] = (Level.A1)
     
     return example
 

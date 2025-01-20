@@ -10,18 +10,18 @@ class Level(Enum):
     B2 = 4
     C1 = 5
     C2 = 6
-def test_level(message_input:str) -> Tuple[Level]:
+def test_level(message_input:str) -> Level:
     """
         Desc:
             Return the level of the user, according to the composition wrote from the user.
             
         Usecase:
             >>> test_level("We have somany good things to eat for dinner.")
-            (Level.A1)
+            Level.A1
             
     """
     
-    example:Tuple[Level] = (Level.A1)
+    example:Level = Level.A1
     
     return example
 

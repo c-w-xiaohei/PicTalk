@@ -49,7 +49,7 @@ def get_img_info(img:NDArray[any],level:Level) -> dict:
     
     return example
 
-def get_conversation(conversation:list,level:Level) -> Generator[str,None,None]:
+def get_conversation(conversation:list,level:Level,img:NDArray[any]) -> Generator[str,None,None]:
     """
         Desc:
             Return the generator of conversation, including the user's question and the assistant's answer, based on the user's level.
@@ -60,7 +60,7 @@ def get_conversation(conversation:list,level:Level) -> Generator[str,None,None]:
                 {"role": "assistant", "content": "Hello"},
                 {"role": "user", "content": "What do you see in the image?"}
             ]
-            >>> get_chat(chat,Level.A1)
+            >>> get_chat(chat,Level.A1,img)
             (a generator of response string)
     """
     
@@ -83,6 +83,18 @@ def get_new_context(words:list[str],level:Level) -> str:
     """
     
     example:str = "There is a laptop, a cup, and a mobile phone."
+    return example
+
+def get_audio(text:str)->str:
+    """
+        Desc:
+            Generate an audio url from the given text.
+        Usecase:
+            >>> get_audio("Hello, how are you?")
+            "https://example.com/audio.mp3"
+            
+    """
+    example:str = "https://example.com/audio.mp3"
     return example
 
     

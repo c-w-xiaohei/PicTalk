@@ -6,6 +6,8 @@ from modelscope.pipelines import pipeline
 from modelscope.utils.constant import Tasks
 from IPython.display import Audio, display
 from datetime import datetime
+from modelscope import AutoModelForCausalLM, AutoTokenizer
+import torch
 import os
 
 class Level(Enum):
@@ -16,22 +18,71 @@ class Level(Enum):
     B2 = 4
     C1 = 5
     C2 = 6
-def test_level(message_input:str) -> Level:
-    """
-        Desc:
-            Return the level of the user, according to the composition wrote from the user.
-            
-        Usecase:
-            >>> test_level("We have somany good things to eat for dinner.")
-            Level.A1
-            
-    """
-    
-    example:Level = Level.A1
-    
-    return example
+
+# 初始化微调的大模型，因参数和system提示均为固定，故不写成函数
+# 指定模型路径
+model_name = "/mnt/workspace/PicTalk/model_call/models/checkpoint-90-gptq-int2" #修改为模型所在checkpoint文件夹的路径
+# 检查是否有可用的GPU，如果有的话，使用第一个GPU
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# 加载模型和分词器
+model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype="auto", device_map={"": device})
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+# system对模型的预设
+system = "你是一个英语教学专家。你需要根据CERF英语等级，如“A1,A2”，或者中国中学英语等级，如'junior,senior'，根据给定词汇生成等级对应的英语片段。如：input:'A2,laptop bird dustbin cup coffee hit mobilephone' output:'A bird hit a laptop, spilling coffee from a cup. A mobilephone fell in the dustbin.'"
+print("微调模型加载完成，模型名为： " + model_name)
 
 
+def test_level(message_input: str) -> Level:
+    """
+    Desc:
+        Return the level of the user, according to the composition wrote from the user.
+        
+    Usecase:
+        >>> test_level("We have so many good things to eat for dinner.")
+        Level.A1
+    """
+    torch.cuda.empty_cache()
+
+    # 将输入文本封装为对话格式
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": message_input}
+    ]
+    
+    # 使用模型生成回复
+    text = tokenizer.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=True
+    )
+    model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
+
+    generated_ids = model.generate(
+        **model_inputs,
+        max_new_tokens=512
+    )
+    
+    # 提取生成的文本
+    generated_ids = [
+        output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+    ]
+    response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+    
+    # 根据生成的文本判断等级（这里只是一个简单的示例逻辑，可以根据需要调整）
+    if "A1" in response:
+        return Level.A1
+    elif "A2" in response:
+        return Level.A2
+    elif "B1" in response:
+        return Level.B1
+    elif "B2" in response:
+        return Level.B2
+    elif "C1" in response:
+        return Level.C1
+    elif "C2" in response:
+        return Level.C2
+    else:
+        return Level.A1  # 默认返回 A1 级别
 
 def get_img_info(img:NDArray[any],level:Level) -> dict:
     """ 
@@ -77,31 +128,42 @@ def get_conversation(conversation:list,level:Level,img:NDArray[any]) -> Generato
     for s in exmample_arr:
         yield s
 
-def get_new_context(words:list[str],level:Level) -> str:
-    """
-        Desc:
-            Generate a new context description using the given words, based on the user's level.
-            
-        Usecase:
-            >>> get_new_context(["laptop","cup","mobilephone"],Level.A1)
-            "There is a laptop, a cup, and a mobile phone."
-            
-    """
-    
-    example:str = "There is a laptop, a cup, and a mobile phone."
-    return example
 
-# def get_audio(text:str)->str:
-#     """
-#         Desc:
-#             Generate an audio url from the given text.
-#         Usecase:
-#             >>> get_audio("Hello, how are you?")
-#             "https://example.com/audio.mp3"
-            
-#     """
-#     example:str = "https://example.com/audio.mp3"
-#     return example
+def get_new_context(words: list[str], level: Level) -> str:
+    """
+    Desc:
+        Generate a new context description using the given words, based on the user's level.
+        
+    Usecase:
+        >>> get_new_context(["laptop", "cup", "mobilephone"], Level.A1)
+        "There is a laptop, a cup, and a mobile phone."
+    """
+    # 将输入词汇和等级封装为对话格式
+    input_text = f"{level.value},{','.join(words)}"
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": input_text}
+    ]
+    
+    # 使用模型生成上下文
+    text = tokenizer.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=True
+    )
+    model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
+    generated_ids = model.generate(
+        **model_inputs,
+        max_new_tokens=512
+    )
+    
+    # 提取生成的文本
+    generated_ids = [
+        output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+    ]
+    response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+    
+    return response
 
 
 def get_audio(text: str) -> str:
@@ -140,3 +202,26 @@ def get_audio(text: str) -> str:
 
     # 返回音频文件的本地路径
     return os.path.abspath(audio_file)
+
+
+# 主函数用于测试，如需测试则把主函数取消注解，重跑init.py
+'''
+if __name__ == "__main__":
+    # 测试 test_level 函数
+    user_input = "We have so many good things to eat for dinner."
+    level = test_level(user_input)
+
+    # 测试 get_new_context 函数
+    words = ["laptop", "cup", "mobilephone"]
+    context = get_new_context(words, Level.A1)
+    
+    # 测试 get_audio 函数
+    test_text = "今天天气很晴朗"
+    audio_path = get_audio(test_text)
+    
+    # 三个函数的输出
+    print(f"Detected Level: {level}") # 应该输出输入句子的难度等级
+    print(f"Generated Context: {context}") # 应该输出根据难度等级和输入词汇造出的句子
+    print(f"Generated audio file path: {audio_path}") # 应该输出生成音频wav文件的路径
+'''
+

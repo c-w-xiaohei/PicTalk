@@ -1,0 +1,12 @@
+{
+  "bits": 2,
+  "dataset": "data/modified_dataset.jsonl",
+  "group_size": 128,
+  "damp_percent": 0.1,
+  "desc_act": false,
+  "sym": true,
+  "true_sequential": true,
+  "quant_method": "gptq",
+  "modules_in_block_to_quantize": null,
+  "block_name_to_quantize": "base_model.model.model.layers"
+}

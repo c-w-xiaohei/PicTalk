@@ -9,6 +9,8 @@ from model_call import models
 from os import path,makedirs
 from datetime import datetime
 
+from model_call.models import call_qwen_finetuned
+from prompt import prompt_first
 class Level(Enum):
     # CEFR levels
     A1 = 1
@@ -28,34 +30,25 @@ def test_level(message_input: str) -> Level:
         >>> test_level("We have so many good things to eat for dinner.")
         Level.A1
     """
-
-    # system对模型的预设
-    system = "你是一个英语教学专家。你需要根据CERF英语等级，如“A1,A2”，或者中国中学英语等级，如'junior,senior'，根据给定词汇生成等级对应的英语片段。如：input:'A2,laptop bird dustbin cup coffee hit mobilephone' output:'A bird hit a laptop, spilling coffee from a cup. A mobilephone fell in the dustbin.'"
-
-    # 将输入文本封装为对话格式
+    prompt=prompt_first()
+   
     message = [
-        {"role": "system", "content": system},
+        {"role": "system", "content": prompt},
         {"role": "user", "content": message_input}
     ]
-
-    response = models.call_qwen_finetuned(message, False)
-   
+    example = call_qwen_finetuned(message)
     
-    # 根据生成的文本判断等级（这里只是一个简单的示例逻辑，可以根据需要调整）
-    if "A1" in response:
-        return Level.A1
-    elif "A2" in response:
-        return Level.A2
-    elif "B1" in response:
-        return Level.B1
-    elif "B2" in response:
-        return Level.B2
-    elif "C1" in response:
-        return Level.C1
-    elif "C2" in response:
-        return Level.C2
-    else:
-        return Level.A1  # 默认返回 A1 级别
+    # 将字符串转换为 Level 枚举类型
+    level_mapping = {
+        "A1": Level.A1,
+        "A2": Level.A2,
+        "B1": Level.B1,
+        "B2": Level.B2,
+        "C1": Level.C1,
+        "C2": Level.C2
+    }
+    
+    return level_mapping.get(example,Level.A1)  # 默认返回 Level.A1 如果没有匹配到
 
 def get_img_info(img:str,level:Level) -> dict:
     """ 
@@ -150,7 +143,7 @@ def get_audio(text: str) -> str:
 
 
 # 主函数用于测试，如需测试则把主函数取消注解，重跑init.py
-
+"""
 if __name__ == "__main__":
     # 测试 test_level 函数
     user_input = "We have so many good things to eat for dinner."
@@ -168,5 +161,4 @@ if __name__ == "__main__":
     print(f"Detected Level: {level}") # 应该输出输入句子的难度等级
     print(f"Generated Context: {context}") # 应该输出根据难度等级和输入词汇造出的句子
     print(f"Generated audio file path: {audio_path}") # 应该输出生成音频wav文件的路径
-
-
+"""

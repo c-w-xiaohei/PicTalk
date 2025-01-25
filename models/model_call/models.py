@@ -35,7 +35,7 @@ def _get_model(requested_model:Model) -> str :
         raise ValueError(f"模型加载时出现异常：{e}")
     return model_path
     
-def call_qwen_finetuned(messages:dict,stream:bool = False) -> str | Generator[str,None,None]:
+def call_qwen_finetuned(messages:list,stream:bool = False) -> str | Generator[str,None,None]:
     """
     微调大模型调用函数
     stream:是否使用流式输出

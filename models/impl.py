@@ -1,10 +1,10 @@
 from typing import Generator, List, Dict
 from numpy.typing import NDArray
-from . import Level, ModelService
-from model_call import models
+from models.interface import Level, ModelService
+from models.model_call import models
 from os import path, makedirs
 from datetime import datetime
-from prompt import prompt_first
+from models.prompt import prompt_first
 from model_call.models import call_qwen_finetuned
 
 class ModelServiceDefaultImpl(ModelService):

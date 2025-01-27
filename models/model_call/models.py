@@ -1,5 +1,6 @@
 import torch
-from modelscope import AutoModelForCausalLM, AutoTokenizer,snapshot_download
+from modelscope import AutoModelForCausalLM, AutoTokenizer,AutoProcessor,snapshot_download,Qwen2VLForConditionalGeneration
+from qwen_vl_utils import process_vision_info
 from modelscope.outputs import OutputKeys
 from modelscope.pipelines import pipeline
 from modelscope.utils.constant import Tasks
@@ -97,9 +98,9 @@ def call_qwen_finetuned(messages:list,stream:bool = False) -> str | Generator[st
 
         return streamer
 
-def call_vl(message:dict)->str:
+def call_vl(messages:dict)->str:
     """
-    message 示例格式：
+    messages 示例格式：
     messages = [
         {
             "role": "user",
@@ -113,8 +114,9 @@ def call_vl(message:dict)->str:
         }
     ]
     """
+    model_dir = _get_model(Model.VL)
     model = Qwen2VLForConditionalGeneration.from_pretrained(
-        _get_model(Model.VL),
+        model_dir,
         torch_dtype=torch.bfloat16,
         attn_implementation="flash_attention_2",
         device_map="auto",
@@ -151,7 +153,7 @@ def call_vl(message:dict)->str:
 
     return output_text
 
-def call_tts(text:str)->bytes(): 
+def call_tts(text:str)->bytes: 
 
     # 创建一个文本到语音的处理管道，指定任务类型为文本到语音，并使用指定的模型
     sambert_hifigan_tts = pipeline(task=Tasks.text_to_speech, model=Model.TTS.value)

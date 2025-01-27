@@ -1,12 +1,49 @@
 from typing import Generator, List, Dict
 from numpy.typing import NDArray
 from models.interface import Level, ModelService
-from models.model_call import models
+from models.model_call.models import call_qwen_finetuned,call_vl
 from os import path, makedirs
 from datetime import datetime
-from models.prompt import prompt_first
+from models.prompt import prompt_first,  prompt_second_first,  prompt_second_second,  prompt_second_third,  prompt_second_forth
 from model_call.models import call_qwen_finetuned
+import re
+#内置函数，将字符串转换为列表，字符串样例：[[objectA,(x1,y1),(x2,y2)],[objectB,(x1,y1),(x2,y2)],...untill no objects left]
+def _parse_detection_boxes(detection_boxes_str: str) -> List[Dict[str, Union[str, List[Tuple[int, int]]]]]:
+  try:
 
+        # 去除外层方括号
+        detection_boxes_str = detection_boxes_str.strip()[1:-1]
+        
+        # 分割每个对象的条目
+        entries = detection_boxes_str.split('], [')
+        
+        # 初始化结果列表
+        result_list = []
+        
+        for entry in entries:
+            # 去掉可能存在的前后空格和多余的方括号
+            entry = entry.strip().strip('[]')
+            
+            # 分割对象名称和坐标
+            parts = entry.split(', ')
+            
+            if len(parts) != 3:
+                continue
+            
+            object_name = parts[0].strip("'")
+            
+            # 解析坐标
+            coord1 = tuple(map(int, parts[1].strip('()').split(',')))
+            coord2 = tuple(map(int, parts[2].strip('()').split(',')))
+            
+            # 构建字典项
+            result_list.append({"word": object_name, "coordinates": [coord1, coord2]})
+        
+        return result_list
+    
+  except Exception as e:
+        print(f"解析检测框字符串时出错: {e}")
+        return []
 class ModelServiceDefaultImpl(ModelService):
     """
     ModelService 接口的默认实现类
@@ -37,8 +74,83 @@ class ModelServiceDefaultImpl(ModelService):
         }
         
         return level_mapping.get(example,Level.A1)  # 默认返回 Level.A1 如果没有匹配到
+    def get_img_info(img:str,level:Level) -> dict:
+        """ 
+        Desc:
+            Return the information of the image, including a description of the image and the words within it along with corresponding bounding boxes, based on the user's level.
+            img: base64 encoded image
 
-    def get_img_info(self, img: str, level: Level) -> Dict:
+        Usecase:
+            >>> img
+            "data:image;base64,/9j/..."
+            >>> get_img_info(img,Level.A1)
+            {"desc":"Laptop bird dustbin cup coffee hit mobilephone" output:"A bird hit a laptop, spilling coffee from a cup. A mobilephone fell in the dustbin.","words":[("laptop",("123","456"),("126","467")),("cup",("53","534"),("86","486"))...]}
+
+  """
+     #Part 1
+        prompt1 = prompt_second_first()
+        messages1 = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "image": img
+                },
+                {"type": "text", "text": prompt1},
+            ],
+        }
+    ]
+        List = call_vl(messages1)
+#Part 2
+        tems = list(List.keys()) #单词列表
+        list_string = ' '.join(items) #从列表中提取对象并转换为单词字符串
+        prompt2 = prompt_second_second
+        ADd = srt(level) + "," + list_string
+        message2 = [
+        {"role": "system", "content": prompt2},
+        {"role": "user", "content": ADd}
+    ]
+        sentence = call_qwen_finetuned(message2,false)
+        eng_pattern = r'[A-Za-z\s\.\,\-\']+'  # 匹配英文字符及常见标点
+        zh_pattern = r'[\u4e00-\u9fff]+'      # 匹配中文字符
+    
+        english_parts = re.findall(eng_pattern, sentence)
+        chinese_parts = re.findall(zh_pattern, sentence)
+    
+    # 将找到的部分合并为完整的句子
+        english_sentence = ' '.join(english_parts).strip()
+        chinese_sentence = ''.join(chinese_parts)
+        prompt3 = prompt_second_third()
+        message2 = [
+        {"role": "system", "content": prompt3},
+        {"role": "user", "content": english_sentence}
+    ]
+#Paet3
+        prompt4 = prompt_second_forth()
+        messages2 = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "image": img
+                },
+                {"type": "text", "text": prompt4},
+            ],
+        }
+    ]
+        Part3 = call_vl(messsages2)
+#Part4
+        List_list = _parse_detection_boxes(Part3)
+        output_dict = {
+        "desc": english_sentence ,
+        "translation": chinese_sentence,
+        "words": List_list
+    }
+        return output_dict
+   
+    """  
         return {
             "desc": "The description of the image",
             "translation": "图片的描述",
@@ -49,7 +161,7 @@ class ModelServiceDefaultImpl(ModelService):
             ],
             "words_translation": ["单词1", "单词2", "单词3"]
         }
-
+    """
     def get_conversation(self, conversation: list, level: Level, img: NDArray) -> Generator[str, None, None]:
         exmample_arr = ["Hello.", "What", "do", "you", "see?"]
         for s in exmample_arr:

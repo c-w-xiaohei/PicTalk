@@ -5,8 +5,9 @@ from models.model_call.models import call_qwen_finetuned,call_vl
 from os import path, makedirs
 from datetime import datetime
 from models.prompt import prompt_first,  prompt_second_first,  prompt_second_second,  prompt_second_third,  prompt_second_forth
-from model_call.models import call_qwen_finetuned
+from models.model_call.models import call_qwen_finetuned
 import re
+from typing import List, Dict, Union, Tuple, Generator
 #内置函数，将字符串转换为列表，字符串样例：[[objectA,(x1,y1),(x2,y2)],[objectB,(x1,y1),(x2,y2)],...untill no objects left]
 def _parse_detection_boxes(detection_boxes_str: str) -> List[Dict[str, Union[str, List[Tuple[int, int]]]]]:
   try:
@@ -76,7 +77,7 @@ class ModelServiceDefaultImpl(ModelService):
         }
         
         return level_mapping.get(example,Level.A1)  # 默认返回 Level.A1 如果没有匹配到
-    def get_img_info(img:str,level:Level) -> dict:
+    def get_img_info(self,img:str,level:Level) -> dict:
         """ 
         Desc:
             Return the information of the image, including a description of the image and the words within it along with corresponding bounding boxes, based on the user's level.

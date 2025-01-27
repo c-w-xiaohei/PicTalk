@@ -18,25 +18,4 @@ service: ModelService = ModelServiceDefaultImpl()
 __all__ = ['service', 'Level']
 
 
-# 主函数用于测试，如需测试则把主函数取消注解，重跑init.py
-"""
-if __name__ == "__main__":
-    # 测试 test_level 函数
-    user_input = "We have so many good things to eat for dinner."
-    level = service.test_level(user_input)
-
-    # 测试 get_new_context 函数
-    words = ["laptop", "cup", "mobilephone"]
-    context = service.get_new_context(words, Level.A1)
-    
-    # 测试 get_audio 函数
-    test_text = "今天天气很晴朗"
-    audio_path = service.get_audio(test_text)
-    
-    # 三个函数的输出
-    print(f"Detected Level: {level}") # 应该输出输入句子的难度等级
-    print(f"Generated Context: {context}") # 应该输出根据难度等级和输入词汇造出的句子
-    print(f"Generated audio file path: {audio_path}") # 应该输出生成音频wav文件的路径
-"""
-
 

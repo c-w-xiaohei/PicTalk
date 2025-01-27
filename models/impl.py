@@ -44,6 +44,8 @@ def _parse_detection_boxes(detection_boxes_str: str) -> List[Dict[str, Union[str
   except Exception as e:
         print(f"解析检测框字符串时出错: {e}")
         return []
+  
+
 class ModelServiceDefaultImpl(ModelService):
     """
     ModelService 接口的默认实现类

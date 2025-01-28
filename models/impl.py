@@ -4,7 +4,7 @@ from models.interface import Level, ModelService
 from models.model_call.models import call_qwen_finetuned,call_vl
 from os import path, makedirs
 from datetime import datetime
-from models.prompt import prompt_first,  prompt_second_first,  prompt_second_second,  prompt_second_third,  prompt_second_forth
+from models.prompt import prompt_first,  prompt_second_first,  prompt_second_second,  prompt_second_third,  prompt_second_forth, prompt_second_fix
 from models.model_call.models import call_qwen_finetuned
 import re
 from typing import List, Dict, Union, Tuple, Generator
@@ -106,13 +106,17 @@ class ModelServiceDefaultImpl(ModelService):
     ]
         List = call_vl(messages1)
 #Part 2
-        tems = list(List.keys()) #单词列表
-        list_string = ' '.join(items) #从列表中提取对象并转换为单词字符串
+        prompt_fix = prompt_second_fix()
+        message_fix =  [
+        {"role": "system", "content": prompt_fix},
+        {"role": "user", "content": List}
+    ]
+        List_words = call_qwen_finetuned(message_fix)
         prompt2 = prompt_second_second
-        ADd = srt(level) + "," + list_string
+        Add = str(level) + "," + List_words
         message2 = [
         {"role": "system", "content": prompt2},
-        {"role": "user", "content": ADd}
+        {"role": "user", "content": Add}
     ]
         sentence = call_qwen_finetuned(message2,false)
         eng_pattern = r'[A-Za-z\s\.\,\-\']+'  # 匹配英文字符及常见标点

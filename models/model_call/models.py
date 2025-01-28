@@ -116,10 +116,7 @@ def call_vl(messages:dict)->str:
     """
     model_dir = _get_model(Model.VL)
     model = Qwen2VLForConditionalGeneration.from_pretrained(
-        model_dir,
-        torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
-        device_map="auto",
+      model_dir, torch_dtype="auto", device_map="auto"
     )
 
     # The default range for the number of visual tokens per image in the model is 4-16384. You can set min_pixels and max_pixels according to your needs, such as a token count range of 256-1280, to balance speed and memory usage.

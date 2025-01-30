@@ -118,7 +118,7 @@ class ModelServiceDefaultImpl(ModelService):
         {"role": "system", "content": prompt2},
         {"role": "user", "content": Add}
     ]
-        sentence = call_qwen_finetuned(message2,false)
+        sentence = call_qwen_finetuned(message2,False)
         eng_pattern = r'[A-Za-z\s\.\,\-\']+'  # 匹配英文字符及常见标点
         zh_pattern = r'[\u4e00-\u9fff]+'      # 匹配中文字符
     

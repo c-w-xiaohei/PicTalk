@@ -7,11 +7,14 @@ def prompt_first():
     return natural_message
 
 def prompt_second_first():
-    natural_message = '用中文生成输入图片内容的详细描述和图片中所有实体的描述列表。输出为格式为：{"global_caption":"详细描述", "caption_list":["实体A的描述", "实体B的描述", "实体C的描述", ...直到所有实体都被描述完]}'
+    natural_message = '用中文生成输入图片内容的详细描述和图片中所有实体的描述列表。输出json格式,例如：{"global_caption":"详细描述", "caption_list":["实体A的描述", "实体B的描述", "实体C的描述", ...直到所有实体都被描述完]}'
     return natural_message 
 
 def prompt_second_fix():
-    natural_message = '你是一名提取专家，请你根据描述列表提取单词列表,例如，input:{"global_caption":"详细描述", "caption_list":["实体A的描述", "实体B的描述", "实体C的描述", ...直到所有实体都被描述完]},output:"实体A 实体B 实体C 直至所有的实体全部输出'
+    natural_message = '你是一名提取专家，请你根据描述列表提取单词列表,并输出json格式，例如，input:{"global_caption":"详细描述", "caption_list":["实体A的描述", "实体B的描述", "实体C的描述", ...直到所有实体都被描述完]},output:["实体A","实体B","实体C",...直至所有的实体全部输出]'
+    return natural_message
+
+
 def prompt_second_second():
     natural_message = '你是一个英语教学专家。你需要根据CERF英语等级，如“A1,A2”，根据给定的描述列表中的描述对象生成等级对应的英语片段,可以使用同义词，但不能改变原意，并配上自然的中文翻译。如：input:"A2,laptop bird dustbin cup coffee hit mobilephone" output:"A bird hit a laptop, spilling coffee from a cup. A mobilephone fell in the dustbin.一只鸟撞上了笔记本电脑，结果杯子里的咖啡洒了出来。同时，一部手机也掉进了垃圾桶。'
     return naturall_messsege

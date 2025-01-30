@@ -11,7 +11,7 @@ from threading import Thread
 from enum import Enum
 from os import path,environ
 import json 
-from typing import Optional,Generator
+from typing import Generator
 
 import multiprocessing
 import logging
@@ -60,7 +60,7 @@ def _get_model(requested_model:Model) -> str :
 """
 
 PROCESS_CONFIG = {
-    Model.INSTURCT: False,
+    Model.INSTURCT: True,
     Model.VL: True,
     Model.TTS: False
 }
@@ -77,10 +77,10 @@ def call_qwen_finetuned(messages: list, stream: bool = False) -> str | Generator
     logging.info(f'''调用微调模型:
             @messages:{messages}
             @stream{stream}''')
+    torch.cuda.empty_cache()
     if PROCESS_CONFIG.get(Model.INSTURCT, False):
         if stream:
-            raise ValueError("Stream mode not supported in process mode")
-            
+            return _call_qwen_finetuned(messages, stream=stream)
         ctx = multiprocessing.get_context('spawn')
         queue = ctx.Queue()
         p = ctx.Process(
@@ -98,6 +98,7 @@ def call_qwen_finetuned(messages: list, stream: bool = False) -> str | Generator
         return _call_qwen_finetuned(messages, stream=stream)
 
 def call_vl(messages: dict) -> str:
+    torch.cuda.empty_cache()
     log_msg = str(messages)
     if log_msg.__len__()>300:
         log_msg = log_msg[:300] + "..."
@@ -121,6 +122,7 @@ def call_vl(messages: dict) -> str:
         return _call_vl(messages)
 
 def call_tts(text: str) -> bytes:
+    torch.cuda.empty_cache()
     logging.info(f'''调用视觉模型:
         @text:{text}''')
     if PROCESS_CONFIG.get(Model.TTS, False):
@@ -158,8 +160,6 @@ def _call_qwen_finetuned(messages:list,stream:bool = False) -> str | Generator[s
             raise ValueError("参数类型错误:messages中的'role'和'content'值必须为字符串类型")
     
     try:
-        torch.cuda.empty_cache()
-
         # 模型绝对路径
         base_model_path = _get_model(Model.INSTURCT)
         model_path = CHEKPOINT_PATH
@@ -206,7 +206,6 @@ def _call_qwen_finetuned(messages:list,stream:bool = False) -> str | Generator[s
             ]
             response =  tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
-            torch.cuda.empty_cache()
             logging.info(f'''微调大模型推理完毕:
                 @response{response}''')
             return response
@@ -218,7 +217,6 @@ def _call_qwen_finetuned(messages:list,stream:bool = False) -> str | Generator[s
             generation_kwargs = dict(model_inputs, streamer=streamer, max_new_tokens=100)
             thread = Thread(target=model.generate, kwargs=generation_kwargs)
             thread.start()
-            torch.cuda.empty_cache()
             
             logging.info(f'''微调大模型推理完毕:
                 @response(流式输出模式){streamer}''')
@@ -299,7 +297,6 @@ def _call_vl(messages:dict)->str:
             if item["type"] == "text" and "text" not in item:
                 raise ValueError("参数类型错误:当'type'为'text'时，必须包含'text'键")
     try:
-            torch.cuda.empty_cache()
             model_dir = _get_model(Model.VL)
             logging.info("视觉模型加载中...")
             model = Qwen2VLForConditionalGeneration.from_pretrained(

@@ -4,7 +4,7 @@ from models.interface import Level, ModelService
 from models.model_call.models import call_qwen_finetuned,call_vl
 from os import path, makedirs
 from datetime import datetime
-from models.prompt import prompt_first,  prompt_second_first,  prompt_second_second,  prompt_second_third,  prompt_second_forth, prompt_second_fix
+from models.prompt import prompt_first,  prompt_second_first,  prompt_second_second,  prompt_second_third,  prompt_second_forth, prompt_second_fix,prompt_translate,prompt_context
 from models.model_call.models import call_qwen_finetuned
 import re
 from typing import List, Dict, Union, Tuple, Generator
@@ -112,7 +112,7 @@ class ModelServiceDefaultImpl(ModelService):
         {"role": "user", "content": List}
     ]
         List_words = call_qwen_finetuned(message_fix)
-        prompt2 = prompt_second_second
+        prompt2 = prompt_second_second()
         Add = str(level) + "," + List_words
         message2 = [
         {"role": "system", "content": prompt2},
@@ -133,8 +133,10 @@ class ModelServiceDefaultImpl(ModelService):
         {"role": "system", "content": prompt3},
         {"role": "user", "content": english_sentence}
     ]
+        List_words = call_qwen_finetuned(message2)
 #Paet3
-        prompt4 = prompt_second_forth()
+        prompt4 = prompt_second_forth() #这里还需要调试：提示词达不到效果
+        prompt4 += List_words
         messages2 = [
         {
             "role": "user",
@@ -147,7 +149,7 @@ class ModelServiceDefaultImpl(ModelService):
             ],
         }
     ]
-        Part3 = call_vl(messsages2)
+        Part3 = call_vl(messages2) 
 #Part4
         List_list = _parse_detection_boxes(Part3)
         output_dict = {
@@ -170,14 +172,66 @@ class ModelServiceDefaultImpl(ModelService):
         }
     """
     def get_conversation(self, conversation: list, level: Level, img: NDArray) -> Generator[str, None, None]:
-        exmample_arr = ["Hello.", "What", "do", "you", "see?"]
-        for s in exmample_arr:
-            yield s
+                   #先将NDArray转成base64编码的字符串，便于输入vl模型
+        # 根据数组形状猜测色彩模式
+       if len(NDArray.shape) == 2:
+        # 单通道图像，可能是灰度图
+        mode = 'L'
+       elif NDArray.shape[2] == 3:
+        # 三通道图像，RGB
+        mode = 'RGB'
+       elif NDArray.shape[2] == 4:
+        # 四通道图像，RGBA
+        mode = 'RGBA'
+       else:
+        raise ValueError("Unsupported array shape for conversion to image.")
 
+    # 将NumPy数组转换为PIL图像对象
+       pil_image = Image.fromarray(NDArray.astype(np.uint8), mode=mode)
+
+    # 将PIL图像保存到内存中的字节流
+       byte_io = io.BytesIO()
+       pil_image.save(byte_io, format='PNG')  #使用PNG格式保持透明度信息（对于RGBA图像）
+       byte_io.seek(0)  #返回到字节流的开头
+
+    # 将字节流编码为Base64字符串
+       base64_encoded_data = base64.b64encode(byte_io.getvalue()).decode('utf-8')
+    #加上MIME前缀   
+       base64_encoded_data += "data:image;base64,"
+    #与vl模型进行对话
+       conservation = str(conservation)
+       messages = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "image": base64_encoded_data
+                },
+                {"type": "text", "text":conservation},
+            ],
+          }
+        
+         ]
+       context = call_vl(messages)
+       #根据对应等级进行翻译
+       context = str(level) + "," + context
+       prompt = prompt_translate()
+       message = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": context}
+       ] 
+       generator = call_qwen_finetuned(message,True)
+       return generator
+        
     def get_new_context(self, words: List[str], level: Level) -> str:
-        input_text = f"{level.value},{','.join(words)}"
-        return input_text
-
+        prompt = prompt_context()
+        Add = str(level) + "," + str(words)
+        message = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": Add}
+    ]
+        context = call_qwen_finetuned(message)
     def get_audio(self, text: str) -> str:
         wav = models.call_tts(text)
         audio_folder = path.join(models.CACHE_PATH,"generated_audio")

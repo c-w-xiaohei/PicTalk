@@ -34,3 +34,8 @@ def prompt_context():
 
 def prompt_translate():
     natural_message = '你是一名专业的英文翻译专家，现在请你根据CEFA水平，将接受到的文段翻译为对应水平的英文。如：input：A1，一只鸟撞上了笔记本电脑，结果杯子里的咖啡洒了出来。同时，一部手机也掉进了垃圾桶。output: A bird hit a laptop, spilling coffee from a cup. A mobilephone fell in the dustbin.'
+    return natural_message
+
+def prompt_contract():
+    natural_message = '你现在是一名图片分析专家，请你根据下面的对话或者对话历史以及图片，生成回答的内容'
+    return natural_message

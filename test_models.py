@@ -1,4 +1,40 @@
 from models import ModelServiceDefaultImpl,Level
+#读入NDArray
+import os
+import numpy as np
+from PIL import Image
+
+def image_to_ndarray(absolute_path):
+    """
+    将给定绝对路径的图像（即使是WebP格式）转换为numpy ndarray。
+    
+    参数:
+    - absolute_path: 图像的绝对路径。
+    
+    返回:
+    - 转换后的numpy ndarray对象。
+    """
+    # 使用PIL打开图像
+    with Image.open(absolute_path) as img:
+        # 如果需要，可以在这里进行图像模式的转换，例如将WebP转换为RGB
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        # 将图像转换为numpy数组
+        img_array = np.array(img)
+        
+    return img_array
+
+# 获取当前脚本所在目录
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 基于当前目录构建目标图像文件的绝对路径
+absolute_path = os.path.join(current_dir, 'hh.webp')
+
+# 调用函数并获取结果
+ndarray_image = image_to_ndarray(absolute_path)
+
+
+
 
 """
 if __name__ == "__main__":
@@ -52,6 +88,7 @@ if __name__ == "__main__":
     # 实例化对象
     test = ModelServiceDefaultImpl()
     # 测试 get_img_info 函数
+    """#文件读入
     input_file_name = 'Input.txt'
     a = ""  # 初始化变量a，用于接收文件内容作为字符串
     
@@ -60,11 +97,25 @@ if __name__ == "__main__":
     except FileNotFoundError as e:
         print(e)
         sys.exit(1)  # 如果文件未找到，退出程序
+    """
     
     level = Level.A1
+    """
     context = test.get_img_info(a, level)  # 通过实例调用 get_img_info 方法并传递 img 和 level 参数
     context = str(context)
     print(context)
+    """
+    #测试get_new_context函数
+    """
+    conversation = [
+    {"role": "user", "content": "你好！"},
+    {"role": "assistant", "content": "你好！有什么可以帮助你的吗？"},
+    {"role": "user", "content": "请你简单介绍一下图片的内容"},
 
-
-
+]
+    content = test.get_conversation(conversation,level,ndarray_image)
+    """
+    #测试 get_new_context 函数
+    words = ["castle", "dragon", "knight"]
+    k = test.get_new_context(words,level)
+    print(k)

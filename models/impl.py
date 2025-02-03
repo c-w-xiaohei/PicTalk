@@ -4,10 +4,14 @@ from models.interface import Level, ModelService
 from models.model_call.models import call_qwen_finetuned,call_vl
 from os import path, makedirs
 from datetime import datetime
-from models.prompt import prompt_first,  prompt_second_first,  prompt_second_second,  prompt_second_third,  prompt_second_forth, prompt_second_fix,prompt_translate,prompt_context
+from models.prompt import prompt_first,  prompt_second_first,  prompt_second_second,  prompt_second_third,  prompt_second_forth, prompt_second_fix,prompt_translate,prompt_context,prompt_contract
 from models.model_call.models import call_qwen_finetuned
 import re
 from typing import List, Dict, Union, Tuple, Generator
+from PIL import Image
+import numpy as np
+import base64
+import io
 #内置函数，将字符串转换为列表，字符串样例：[[objectA,(x1,y1),(x2,y2)],[objectB,(x1,y1),(x2,y2)],...untill no objects left]
 def _parse_detection_boxes(detection_boxes_str: str) -> List[Dict[str, Union[str, List[Tuple[int, int]]]]]:
   try:
@@ -174,20 +178,20 @@ class ModelServiceDefaultImpl(ModelService):
     def get_conversation(self, conversation: list, level: Level, img: NDArray) -> Generator[str, None, None]:
                    #先将NDArray转成base64编码的字符串，便于输入vl模型
         # 根据数组形状猜测色彩模式
-       if len(NDArray.shape) == 2:
+       if len(img.shape) == 2:
         # 单通道图像，可能是灰度图
         mode = 'L'
-       elif NDArray.shape[2] == 3:
+       elif img.shape[2] == 3:
         # 三通道图像，RGB
         mode = 'RGB'
-       elif NDArray.shape[2] == 4:
+       elif img.shape[2] == 4:
         # 四通道图像，RGBA
         mode = 'RGBA'
        else:
         raise ValueError("Unsupported array shape for conversion to image.")
 
     # 将NumPy数组转换为PIL图像对象
-       pil_image = Image.fromarray(NDArray.astype(np.uint8), mode=mode)
+       pil_image = Image.fromarray(img.astype(np.uint8), mode=mode)
 
     # 将PIL图像保存到内存中的字节流
        byte_io = io.BytesIO()
@@ -197,9 +201,12 @@ class ModelServiceDefaultImpl(ModelService):
     # 将字节流编码为Base64字符串
        base64_encoded_data = base64.b64encode(byte_io.getvalue()).decode('utf-8')
     #加上MIME前缀   
-       base64_encoded_data += "data:image;base64,"
+       base64_encoded_data = "data:image;base64," + base64_encoded_data
     #与vl模型进行对话
-       conservation = str(conservation)
+       conversation = str(conversation)
+       prompt1 = prompt_contract()
+
+
        messages = [
         {
             "role": "user",
@@ -208,7 +215,7 @@ class ModelServiceDefaultImpl(ModelService):
                     "type": "image",
                     "image": base64_encoded_data
                 },
-                {"type": "text", "text":conservation},
+                {"type": "text", "text":conversation},
             ],
           }
         
@@ -232,6 +239,7 @@ class ModelServiceDefaultImpl(ModelService):
         {"role": "user", "content": Add}
     ]
         context = call_qwen_finetuned(message)
+        return context
     def get_audio(self, text: str) -> str:
         wav = models.call_tts(text)
         audio_folder = path.join(models.CACHE_PATH,"generated_audio")

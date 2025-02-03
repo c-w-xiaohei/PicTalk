@@ -33,15 +33,21 @@ class ModelService(ABC):
         """
             Desc:
                 Return the information of the image, including a description of the image and the words within it along with corresponding bounding boxes, based on the user's level.
-                img: base64 encoded image
+                img: Numpy Data Araay
                 
             Usecase:
                 >>> get_img_info(img,Level.A1)
                 {
                 "desc":"A bird hit a laptop, spilling coffee from a cup. A mobilephone fell in the dustbin.",
                 "translation":"一只鸟撞到了一台平板， 从杯子中溢出了咖啡, 一部手机掉进了垃圾箱。",
-                "words":[("laptop",("123","456"),("126","467")),("cup",("53","534"),("86","486"))...],
-                "words_translation":["平板","杯子"...]
+                "words":[
+                    {"text":"laptop","location":[("123","456"),("126","467")],"translation":"平板"},
+                    {"text":"bird","location":[("100","200"),("110","210")],"translation":"鸟"},
+                    {"text":"coffee","location":[("300","400"),("310","410")],"translation":"咖啡"},
+                    {"text":"cup","location":[("320","420"),("330","430")],"translation":"杯子"},
+                    {"text":"mobilephone","location":[("500","600"),("510","610")],"translation":"手机"},
+                    {"text":"dustbin","location":[("520","620"),("530","630")],"translation":"垃圾箱"}
+                    ]
                 }
         """
         pass

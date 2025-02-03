@@ -49,6 +49,34 @@ def _parse_detection_boxes(detection_boxes_str: str) -> List[Dict[str, Union[str
   except Exception as e:
         print(f"解析检测框字符串时出错: {e}")
         return []
+
+def _nd_to_base64(img:NDArray):
+        #先将NDArray转成base64编码的字符串，便于输入vl模型
+        # 根据数组形状猜测色彩模式
+       if len(img.shape) == 2:
+        # 单通道图像，可能是灰度图
+        mode = 'L'
+       elif img.shape[2] == 3:
+        # 三通道图像，RGB
+        mode = 'RGB'
+       elif img.shape[2] == 4:
+        # 四通道图像，RGBA
+        mode = 'RGBA'
+       else:
+        raise ValueError("Unsupported array shape for conversion to image.")
+
+    # 将NumPy数组转换为PIL图像对象
+       pil_image = Image.fromarray(img.astype(np.uint8), mode=mode)
+
+    # 将PIL图像保存到内存中的字节流
+       byte_io = io.BytesIO()
+       pil_image.save(byte_io, format='PNG')  #使用PNG格式保持透明度信息（对于RGBA图像）
+       byte_io.seek(0)  #返回到字节流的开头
+
+    # 将字节流编码为Base64字符串
+       base64_encoded_data = base64.b64encode(byte_io.getvalue()).decode('utf-8')
+    #加上MIME前缀   
+       return "data:image;base64," + base64_encoded_data
   
 
 class ModelServiceDefaultImpl(ModelService):
@@ -81,7 +109,7 @@ class ModelServiceDefaultImpl(ModelService):
         }
         
         return level_mapping.get(example,Level.A1)  # 默认返回 Level.A1 如果没有匹配到
-    def get_img_info(self,img:str,level:Level) -> dict:
+    def get_img_info(self,img:NDArray,level:Level) -> dict:
         """ 
         Desc:
             Return the information of the image, including a description of the image and the words within it along with corresponding bounding boxes, based on the user's level.
@@ -92,8 +120,9 @@ class ModelServiceDefaultImpl(ModelService):
             "data:image;base64,/9j/..."
             >>> get_img_info(img,Level.A1)
             {"desc":"Laptop bird dustbin cup coffee hit mobilephone" output:"A bird hit a laptop, spilling coffee from a cup. A mobilephone fell in the dustbin.","words":[("laptop",("123","456"),("126","467")),("cup",("53","534"),("86","486"))...]}
-
+    
   """
+        base64_encoded_data = _nd_to_base64(img)
      #Part 1
         prompt1 = prompt_second_first()
         messages1 = [
@@ -102,7 +131,7 @@ class ModelServiceDefaultImpl(ModelService):
             "content": [
                 {
                     "type": "image",
-                    "image": img
+                    "image": base64_encoded_data
                 },
                 {"type": "text", "text": prompt1},
             ],
@@ -147,7 +176,7 @@ class ModelServiceDefaultImpl(ModelService):
             "content": [
                 {
                     "type": "image",
-                    "image": img
+                    "image": base64_encoded_data
                 },
                 {"type": "text", "text": prompt4},
             ],
@@ -176,33 +205,9 @@ class ModelServiceDefaultImpl(ModelService):
         }
     """
     def get_conversation(self, conversation: list, level: Level, img: NDArray) -> Generator[str, None, None]:
-                   #先将NDArray转成base64编码的字符串，便于输入vl模型
-        # 根据数组形状猜测色彩模式
-       if len(img.shape) == 2:
-        # 单通道图像，可能是灰度图
-        mode = 'L'
-       elif img.shape[2] == 3:
-        # 三通道图像，RGB
-        mode = 'RGB'
-       elif img.shape[2] == 4:
-        # 四通道图像，RGBA
-        mode = 'RGBA'
-       else:
-        raise ValueError("Unsupported array shape for conversion to image.")
-
-    # 将NumPy数组转换为PIL图像对象
-       pil_image = Image.fromarray(img.astype(np.uint8), mode=mode)
-
-    # 将PIL图像保存到内存中的字节流
-       byte_io = io.BytesIO()
-       pil_image.save(byte_io, format='PNG')  #使用PNG格式保持透明度信息（对于RGBA图像）
-       byte_io.seek(0)  #返回到字节流的开头
-
-    # 将字节流编码为Base64字符串
-       base64_encoded_data = base64.b64encode(byte_io.getvalue()).decode('utf-8')
-    #加上MIME前缀   
-       base64_encoded_data = "data:image;base64," + base64_encoded_data
-    #与vl模型进行对话
+       base64_encoded_data = _nd_to_base64(img)
+ 
+       #与vl模型进行对话
        conversation = str(conversation)
        prompt1 = prompt_contract()
 

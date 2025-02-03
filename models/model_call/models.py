@@ -75,8 +75,8 @@ def _run_in_process(func, queue, *args, **kwargs):
 
 def call_qwen_finetuned(messages: list, stream: bool = False) -> str | Generator[str, None, None]:
     logging.info(f'''调用微调模型:
-            @messages:{messages}
-            @stream{stream}''')
+            @messages: {messages}
+            @stream: {stream}''')
     torch.cuda.empty_cache()
     if PROCESS_CONFIG.get(Model.INSTURCT, False):
         if stream:
@@ -103,7 +103,7 @@ def call_vl(messages: dict) -> str:
     if log_msg.__len__()>300:
         log_msg = log_msg[:300] + "..."
     logging.info(f'''调用视觉模型:
-        @messages:{log_msg}''')
+        @messages: {log_msg}''')
     if PROCESS_CONFIG.get(Model.VL, False):
         ctx = multiprocessing.get_context('spawn')
         queue = ctx.Queue()
@@ -124,7 +124,7 @@ def call_vl(messages: dict) -> str:
 def call_tts(text: str) -> bytes:
     torch.cuda.empty_cache()
     logging.info(f'''调用视觉模型:
-        @text:{text}''')
+        @text: {text}''')
     if PROCESS_CONFIG.get(Model.TTS, False):
         ctx = multiprocessing.get_context('spawn')
         queue = ctx.Queue()
@@ -207,7 +207,7 @@ def _call_qwen_finetuned(messages:list,stream:bool = False) -> str | Generator[s
             response =  tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
             logging.info(f'''微调大模型推理完毕:
-                @response{response}''')
+                @response: {response}''')
             return response
         else:
             # 输出流式响应
@@ -219,7 +219,7 @@ def _call_qwen_finetuned(messages:list,stream:bool = False) -> str | Generator[s
             thread.start()
             
             logging.info(f'''微调大模型推理完毕:
-                @response(流式输出模式){streamer}''')
+                @response(流式输出模式): {streamer}''')
             return streamer
     except torch.cuda.OutOfMemoryError as e:
         raise MemoryError(f"model_call 异常: 微调大模型调调用过程显存不足，请检查是否使用了GPU：\n{e}")
@@ -338,7 +338,7 @@ def _call_vl(messages:dict)->str:
                 output_text = output_text[0]
 
             logging.info(f'''视觉模型推理完毕：
-                @output_text:{output_text}''')
+                @output_text: {output_text}''')
             return output_text
     except torch.cuda.OutOfMemoryError as e:
         raise MemoryError(f"model_call 异常: 视觉模型调调用过程显存不足，请检查是否使用了GPU：{e}")

@@ -17,7 +17,7 @@ class ModelService(ABC):
     """Model service interface definition"""
     
     @abstractmethod
-    def test_level(self, message_input: str) -> 'Level':
+    def test_level(self, message_input: str) -> Level:
         """
         Desc:
             Return the level of the user, according to the composition wrote from the user.
@@ -29,15 +29,13 @@ class ModelService(ABC):
         pass
 
     @abstractmethod
-    def get_img_info(self, img: str, level: 'Level') -> Dict:
+    def get_img_info(self, img: NDArray, level: 'Level') -> Dict:
         """
             Desc:
                 Return the information of the image, including a description of the image and the words within it along with corresponding bounding boxes, based on the user's level.
                 img: base64 encoded image
                 
             Usecase:
-                >>> img
-                "data:image;base64,/9j/..."
                 >>> get_img_info(img,Level.A1)
                 {
                 "desc":"A bird hit a laptop, spilling coffee from a cup. A mobilephone fell in the dustbin.",

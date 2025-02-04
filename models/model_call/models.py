@@ -33,12 +33,6 @@ CACHE_PATH = path.join(MODELS_PATH,".cache")
 environ['MODELSCOPE_CACHE'] = CACHE_PATH
 
 
-"""
-- 日志配置
-
-"""
-logging.basicConfig(filename=path.join(MODELS_PATH,"models.log"), filemode='a', format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
-
 class Model(Enum):
     INSTURCT = "qwen/Qwen2.5-7B-Instruct"
     VL = "qwen/Qwen2-VL-7B-Instruct-GPTQ-Int4"
@@ -356,6 +350,7 @@ def _call_tts(text:str)->bytes:
 
         # 从输出中提取生成的 WAV 音频数据
         wav = output[OutputKeys.OUTPUT_WAV]
+        logging.info(f"audio type - {type(wav)}")
 
         return wav
     except Exception as e:

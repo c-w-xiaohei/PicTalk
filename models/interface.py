@@ -82,14 +82,12 @@ class ModelService(ABC):
         pass
 
     @abstractmethod
-    def get_audio(self, text: str) -> str:
+    def get_audio(self, text: str) -> bytes:
         """
         Desc:
             Generate an audio file from the given text and return the local file path.
             The audio file will be saved in a specific folder with a unique name based on the current timestamp.
         Usecase:
             >>> audio_path = get_audio("今天天气很晴朗")
-            >>> print(audio_path)
-            "/path/to/audio/20250122_123456.wav"
         """
         pass

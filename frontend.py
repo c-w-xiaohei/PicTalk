@@ -9,6 +9,7 @@ import base64
 import os
 from PIL import Image
 from numpy.typing import NDArray
+from numpy import frombuffer,uint8
 import cv2
 from html_utils import  generate_context_list_html,generate_image_html,generate_badge_html
 
@@ -51,8 +52,15 @@ class PicTalkApp:
 
         logging.info("Frontend: 开始处理图片")
         logging.info("----------------------------")
-        img_array = image
-        result = service.get_img_info(img_array, self.current_level)
+        # 压缩图片
+
+        # 若图片长宽大于1000px则压缩减半
+        if image.shape[0] > 1000 or image.shape[1] > 1000:
+            image = cv2.resize(image, (image.shape[1] // 2, image.shape[0] // 2), interpolation=cv2.INTER_AREA)
+        _, buffer = cv2.imencode('.jpg', image, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
+        self.img = frombuffer(buffer, dtype=uint8)
+
+        result = service.get_img_info(image, self.current_level)
         logging.info("----------------------------")
         logging.info(f"Frontend: 图片处理完成\n处理结果 - {result}")
 

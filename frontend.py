@@ -111,11 +111,13 @@ class PicTalkApp:
         logging.info(f"Frontend: 单词标签生成完成 - {badges[:100]}")
         return badges
     
-    def generate_new_context(self, words: List[str],demo:gr.Blocks,request:gr.Request) -> Dict:
+    def generate_new_context(self, word: str,demo:gr.Blocks,request:gr.Request) -> Dict:
         """生成新语境"""
         logging.info("Frontend: 开始生成新语境")
         logging.info("----------------------------")
-        text_list = [w.get("text") for w in words if w.get("text")]
+        text_list = [w.get("text") for w in self.current_words if w.get("text")]
+        if word:
+            text_list.append(word)
         context = service.get_new_context(text_list, self.current_level)
         path = self._get_audio(context,demo,request)
         self.context_list.append({"en":context,"cn":"","audio":path})

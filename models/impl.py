@@ -1,6 +1,6 @@
 from numpy.typing import NDArray
 from models.interface import Level, ModelService
-from models.model_call.models import call_qwen_finetuned, call_vl
+from models.model_call.models import call_qwen_finetuned, call_vl,call_tts
 from os import path, makedirs
 from datetime import datetime
 from models.prompt import (
@@ -201,25 +201,47 @@ class ModelServiceDefaultImpl(ModelService):
                 }
       """
     def get_conversation(
-        self, conversation: list, level: Level, img: NDArray
-    ) -> Generator[str, None, None]:
+    self, conversation: list, level: Level, img: NDArray
+) -> Generator[str, None, None]:
         base64_encoded_data = _nd_to_base64(img)
 
         # 与vl模型进行对话
-        message_system = [
+        messages = [
             {
-            "role":"system",
-            "content":[
+                "role": "system",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "You are a professional image analysis expert and an english teacher."
+                    }
+                ]
+            }
+        ]
+
+        # 添加图片作为第一条用户消息
+        messages.append({
+            "role": "user",
+            "content": [
                 {
-                    "type": "text",
-                    "text": "你是一名专业的图像分析专家"
+                    "type": "image",
+                    "image": f"{base64_encoded_data}"
                 }
             ]
-        }
-        ]
-        messages = message_system + conversation
-        
-  
+        })
+
+        # 处理后续对话
+        for msg in conversation:
+            formatted_msg = {
+                "role": msg["role"],
+                "content": [
+                    {
+                        "type": "text",
+                        "text": msg["content"]
+                    }
+                ]
+            }
+            messages.append(formatted_msg)
+
         context = call_vl(messages)
         # 根据对应等级进行翻译
         context = str(level) + "," + context
@@ -242,7 +264,7 @@ class ModelServiceDefaultImpl(ModelService):
         return context
 
     def get_audio(self, text: str) -> bytes:
-        wav = models.call_tts(text)
+        wav = call_tts(text)
         # audio_folder = path.join(models.CACHE_PATH, "generated_audio")
 
         # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # 格式：20250122_123456

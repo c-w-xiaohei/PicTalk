@@ -15,6 +15,7 @@ from typing import Generator
 
 import multiprocessing
 import logging
+import copy
 
 
 """
@@ -92,9 +93,22 @@ def call_qwen_finetuned(messages: list, stream: bool = False) -> str | Generator
 
 def call_vl(messages: dict) -> str:
     torch.cuda.empty_cache()
-    log_msg = json.dumps(messages, indent=4, ensure_ascii=False)
-    if log_msg.__len__()>500:
-        log_msg = log_msg[:500] + "..."
+    # 复制 messages 以避免修改原始数据
+    log_messages = copy.deepcopy(messages)
+    
+    # 遍历 messages，找到 img 字段并截断
+    for message in log_messages:
+        if "content" in message:
+            for content in message["content"]:
+                if isinstance(content, dict):
+                    if content.get("type") == "image" and "image" in content:
+                        # 截断 img 字段中的 base64 数据
+                        img_data = content["image"]
+                        if len(img_data) > 50:
+                            content["image"] = img_data[:50] + "..."
+    
+    # 将处理后的 messages 转换为 JSON 字符串并记录日志
+    log_msg = json.dumps(log_messages, indent=4, ensure_ascii=False)
     logging.info(f'''
 >>>>>>>>>>>>>>>>>>> 调用视觉模型:\n @messages: {log_msg}\n{"---"*10}''')
     if PROCESS_CONFIG.get(Model.VL, False):
@@ -217,7 +231,7 @@ def _call_qwen_finetuned(messages:list,stream:bool = False) -> str | Generator[s
     except torch.cuda.OutOfMemoryError as e:
         raise MemoryError(f"model_call 异常: 微调大模型调调用过程显存不足，请检查是否使用了GPU：\n{e}")
     except Exception as e:
-        raise Exception(f"model_call 异常: 微调大模型调用过程中出现异常：\n{e}")
+        raise Exception(f"model_call 异常: 微调大模型调用过程中出现异常：\n{e}\n{e.with_traceback(tb)}")
 
 def _call_vl(messages:list)->str:
     """

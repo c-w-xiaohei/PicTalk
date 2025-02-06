@@ -112,6 +112,7 @@ class ModelServiceDefaultImpl(ModelService):
                 "role": "user",
                 "content": [
                     {"type": "image", "image": base64_encoded_data}
+                    
                 ],
             }
         ]
@@ -124,18 +125,26 @@ class ModelServiceDefaultImpl(ModelService):
             {"role": "user", "content":describtion_list},
         ]
         words_dict_str = call_qwen_finetuned(message_fix) #中英文对应的字典
-        words_dict_str_cleaned = words_dict_str.strip('```json\n').strip() 
+        # 使用正则表达式去除首尾的 ```json 和 ```
+        words_dict_str_cleaned = re.sub(r'^```json\s+|\s+```$', '', words_dict_str, flags=re.MULTILINE).strip()
+        # 进一步去除每行开头的换行符 \n
+        words_dict_str_cleaned = re.sub(r'^\n', '', words_dict_str_cleaned, flags=re.MULTILINE)
         words_dict = json.loads(words_dict_str_cleaned)
         en_list = list(words_dict.keys())
         cn_list = list(words_dict.values())
         prompt2 = prompt_second_second()
-        Add = str(level) + "," + str(en_list)
+        Add = str(level) + "," + describtion_list_str
         message2 = [
             {"role": "system", "content": prompt2},
             {"role": "user", "content": Add},
         ]
         sentence = call_qwen_finetuned(message2, False)
-        sentence_dict: dict = json.loads(sentence)
+        # 使用正则表达式去除首尾的 ```json 和 ```
+        sentence_dict_cleaned = re.sub(r'^```json\s+|\s+```$', '', sentence, flags=re.MULTILINE).strip()
+
+        # 进一步去除每行开头的换行符 \n
+        sentence_dict_cleaned = re.sub(r'^\n', '', sentence_dict_cleaned, flags=re.MULTILINE)
+        sentence_dict: dict = json.loads(sentence_dict_cleaned)
 
         english_sentence = sentence_dict.get("en", "None")
         chinese_sentence = sentence_dict.get("cn", "空")
@@ -144,12 +153,13 @@ class ModelServiceDefaultImpl(ModelService):
         messages2 = [
             {
                 "role": "system",
-                "content": [{"type": "text", "text": prompt4}],
+                "content": [{"type": "text", "text": "You should print the bboxs of the image."}],
             },
             {
                 "role": "user",
                 "content": [
                     {"type": "image", "image": base64_encoded_data},
+                    {"type": "text", "text": prompt4},
                     {"type": "text", "text": str(en_list)},
                 ],
             },

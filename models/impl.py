@@ -105,14 +105,14 @@ class ModelServiceDefaultImpl(ModelService):
                 "role": "system",
                 "content":[
                     {"type" : "text",
-                    "text" :  "你是一名场景描述专家，请你进行场景描述"}
+                    "text" :  prompt1}
                 ]
             },
             {
                 "role": "user",
                 "content": [
-                    {"type": "image", "image": base64_encoded_data},
-                    {"type": "text", "text": prompt1}
+                    {"type": "image", "image": base64_encoded_data}
+                    
                 ],
             }
         ]

@@ -15,7 +15,7 @@ def prompt_second_fix():
 
 
 def prompt_second_second():
-    natural_message = '''你是一个英语教学专家。你需要根据CERF英语等级，如“A1,A2”，根据给定的描述列表中的描述对象生成等级对应的英语片段,可以使用同义词，但不能改变原意，并配上自然的中文翻译。最终必须按照json格式输出，不要输出其他信息。
+    natural_message = '''你是一个英语教学专家。你需要根据CERF英语等级，如“A1,A2”，根据给定的描述列表中的描述对象生成等级自然流畅的英语片段,要求简短精炼，语言优美，并配上自然的中文翻译。最终必须按照json格式输出，不要输出其他信息。
     输入格式:"A2,laptop bird dustbin cup coffee hit mobilephone" 
     输出格式:{"en":"A bird hit a laptop, spilling coffee from a cup. A mobilephone fell in the dustbin.","cn":"一只鸟撞上了笔记本电脑，结果杯子里的咖啡洒了出来。同时，一部手机也掉进了垃圾桶。"}'''
     return natural_message

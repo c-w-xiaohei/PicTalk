@@ -1,4 +1,3 @@
-from typing import Generator, List, Dict
 from numpy.typing import NDArray
 from models.interface import Level, ModelService
 from models.model_call.models import call_qwen_finetuned, call_vl
@@ -8,9 +7,7 @@ from models.prompt import (
     prompt_first,
     prompt_second_first,
     prompt_second_second,
-    prompt_second_third,
     prompt_second_forth,
-    prompt_second_fifth,
     prompt_second_fix,
     prompt_translate,
     prompt_context,
@@ -118,16 +115,21 @@ class ModelServiceDefaultImpl(ModelService):
                 ],
             }
         ]
-        List = call_vl(messages1)
+        describtion_list_str = call_vl(messages1)
+        describtion_list = describtion_list_str + ","+ str(level)
         # Part 2
         prompt_fix = prompt_second_fix()
         message_fix = [
             {"role": "system", "content": prompt_fix},
-            {"role": "user", "content": List},
+            {"role": "user", "content":describtion_list},
         ]
-        List_words_chinese = call_qwen_finetuned(message_fix)
+        words_dict_str = call_qwen_finetuned(message_fix) #中英文对应的字典
+        words_dict_str_cleaned = words_dict_str.strip('```json\n').strip() 
+        words_dict = json.loads(words_dict_str_cleaned)
+        en_list = list(words_dict.keys())
+        cn_list = list(words_dict.values())
         prompt2 = prompt_second_second()
-        Add = str(level) + "," + List_words_chinese
+        Add = str(level) + "," + str(en_list)
         message2 = [
             {"role": "system", "content": prompt2},
             {"role": "user", "content": Add},
@@ -137,15 +139,8 @@ class ModelServiceDefaultImpl(ModelService):
 
         english_sentence = sentence_dict.get("en", "None")
         chinese_sentence = sentence_dict.get("cn", "空")
-        user_text = english_sentence + List_words_chinese
-        prompt3 = prompt_second_third()
-        message2 = [
-            {"role": "system", "content": prompt3},
-            {"role": "user", "content": user_text},
-        ]
-        List_words = call_qwen_finetuned(message2)
         # Part3
-        prompt4 = prompt_second_forth()  # 这里还需要调试：提示词达不到效果
+        prompt4 = prompt_second_forth()
         messages2 = [
             {
                 "role": "system",
@@ -155,7 +150,7 @@ class ModelServiceDefaultImpl(ModelService):
                 "role": "user",
                 "content": [
                     {"type": "image", "image": base64_encoded_data},
-                    {"type": "text", "text": List_words},
+                    {"type": "text", "text": str(en_list)},
                 ],
             },
         ]
@@ -163,13 +158,11 @@ class ModelServiceDefaultImpl(ModelService):
         # Part4
         bbox_str_cleaned = bbox_str.strip('```json\n').strip() #去除json和换行符
         result = eval(bbox_str_cleaned)
-        List_words_chinese_cleaned =  List_words_chinese.strip('```json\n').strip() #去除json和换行符
-        translations = eval(List_words_chinese_cleaned)
         words_list = []
         for index, item in enumerate(result):
            text = item[0]
            location = [result[index][1],result[index][2]]  # 保留元组格式
-           translation = translations[index]  # 根据索引获取对应的中文翻译
+           translation = cn_list[index]  # 根据索引获取对应的中文翻译
     
            word_dict = {
         "text": text,

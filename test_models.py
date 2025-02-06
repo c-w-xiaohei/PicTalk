@@ -69,10 +69,10 @@ if __name__ == "__main__":
     test = ModelServiceDefaultImpl()
     # 测试 get_img_info 函数
     level = Level.A1
-    """
     context = test.get_img_info(ndarray_image, level)  # 通过实例调用 get_img_info 方法并传递 img 和 level 参数
     context = str(context)
     print(context)
+
     """
     #测试get_new_context函数
     
@@ -99,6 +99,10 @@ if __name__ == "__main__":
 ]
     content = test.get_conversation(conversation,level,ndarray_image)
     print(content)
+    """
+
+
+
     #测试 get_new_context 函数
     """
     words = ["castle", "dragon", "knight"]

@@ -238,19 +238,20 @@ class ModelServiceDefaultImpl(ModelService):
         context = call_qwen_finetuned(message)
         return context
 
-    def get_audio(self, text: str) -> str:
+    def get_audio(self, text: str) -> bytes:
         wav = models.call_tts(text)
-        audio_folder = path.join(models.CACHE_PATH, "generated_audio")
+        # audio_folder = path.join(models.CACHE_PATH, "generated_audio")
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # 格式：20250122_123456
-        audio_file = path.join(audio_folder, f"{timestamp}.wav")
+        # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # 格式：20250122_123456
+        # audio_file = path.join(audio_folder, f"{timestamp}.wav")
 
-        # 创建一个特殊文件夹用于存放音频文件
-        makedirs(audio_folder, exist_ok=True)  # 如果文件夹不存在，则创建
+        # # 创建一个特殊文件夹用于存放音频文件
+        # makedirs(audio_folder, exist_ok=True)  # 如果文件夹不存在，则创建
 
-        # 将生成的音频数据写入文件
-        with open(audio_file, "wb") as f:
-            f.write(wav)  # 以二进制形式写入音频文件
+        # # 将生成的音频数据写入文件
+        # with open(audio_file, "wb") as f:
+        #     f.write(wav)  # 以二进制形式写入音频文件
 
         # 返回音频文件的本地路径
-        return path.abspath(audio_file)
+        # return path.abspath(audio_file)
+        return wav

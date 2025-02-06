@@ -68,9 +68,8 @@ def _run_in_process(func, queue, *args, **kwargs):
         queue.put(e)
 
 def call_qwen_finetuned(messages: list, stream: bool = False) -> str | Generator[str, None, None]:
-    logging.info(f'''调用微调模型:
-            @messages: {messages}
-            @stream: {stream}''')
+    logging.info(f'''
+>>>>>>>>>>>>>>>>>>> 调用微调模型:\n @messages: {json.dumps(messages, indent=4, ensure_ascii=False)}\n @stream: {stream}\n{'---'*10}''')
     torch.cuda.empty_cache()
     if PROCESS_CONFIG.get(Model.INSTURCT, False):
         if stream:
@@ -93,11 +92,11 @@ def call_qwen_finetuned(messages: list, stream: bool = False) -> str | Generator
 
 def call_vl(messages: dict) -> str:
     torch.cuda.empty_cache()
-    log_msg = str(messages)
-    if log_msg.__len__()>300:
-        log_msg = log_msg[:300] + "..."
-    logging.info(f'''调用视觉模型:
-        @messages: {log_msg}''')
+    log_msg = json.dumps(messages, indent=4, ensure_ascii=False)
+    if log_msg.__len__()>500:
+        log_msg = log_msg[:500] + "..."
+    logging.info(f'''
+>>>>>>>>>>>>>>>>>>> 调用视觉模型:\n @messages: {log_msg}\n{"---"*10}''')
     if PROCESS_CONFIG.get(Model.VL, False):
         ctx = multiprocessing.get_context('spawn')
         queue = ctx.Queue()
@@ -117,8 +116,8 @@ def call_vl(messages: dict) -> str:
 
 def call_tts(text: str) -> bytes:
     torch.cuda.empty_cache()
-    logging.info(f'''调用视觉模型:
-        @text: {text}''')
+    logging.info(f'''
+>>>>>>>>>>>>>>>>>>> 调用音频模型:\n @text: {text}\n{"---"*10}''')
     if PROCESS_CONFIG.get(Model.TTS, False):
         ctx = multiprocessing.get_context('spawn')
         queue = ctx.Queue()
@@ -174,7 +173,7 @@ def _call_qwen_finetuned(messages:list,stream:bool = False) -> str | Generator[s
         model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype="auto", device_map={"": device})
         tokenizer = AutoTokenizer.from_pretrained(model_path)
         
-        logging.info("微调大模型加载成功")
+        logging.info("微调大模型加载成功!")
 
 
         text = tokenizer.apply_chat_template(
@@ -200,8 +199,8 @@ def _call_qwen_finetuned(messages:list,stream:bool = False) -> str | Generator[s
             ]
             response =  tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
-            logging.info(f'''微调大模型推理完毕:
-                @response: {response}''')
+            logging.info(f'''
+{"---"*10}\n @response: {response}\n<<<<<<<<<<<<<<<<<<< 微调大模型推理完毕!''')
             return response
         else:
             # 输出流式响应
@@ -212,15 +211,15 @@ def _call_qwen_finetuned(messages:list,stream:bool = False) -> str | Generator[s
             thread = Thread(target=model.generate, kwargs=generation_kwargs)
             thread.start()
             
-            logging.info(f'''微调大模型推理完毕:
-                @response(流式输出模式): {streamer}''')
+            logging.info(f'''
+{"---"*10}\n @response(流式输出模式): {streamer}\n<<<<<<<<<<<<<<<<<<< 微调大模型推理完毕!''')
             return streamer
     except torch.cuda.OutOfMemoryError as e:
         raise MemoryError(f"model_call 异常: 微调大模型调调用过程显存不足，请检查是否使用了GPU：\n{e}")
     except Exception as e:
         raise Exception(f"model_call 异常: 微调大模型调用过程中出现异常：\n{e}")
 
-def _call_vl(messages:dict)->str:
+def _call_vl(messages:list)->str:
     """
     messages 示例格式：
     messages = [
@@ -321,7 +320,6 @@ def _call_vl(messages:dict)->str:
             # Inference: Generation of the output
             logging.info("视觉模型推理中...")
             generated_ids = model.generate(**inputs, max_new_tokens=256)
-            logging.info("视觉模型推理完毕！")
             generated_ids_trimmed = [
                 out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
             ]
@@ -331,8 +329,8 @@ def _call_vl(messages:dict)->str:
             if output_text is not None:
                 output_text = output_text[0]
 
-            logging.info(f'''视觉模型推理完毕：
-                @output_text: {output_text}''')
+            logging.info(f'''
+{"---"*10}\n @output_text: {output_text}\n<<<<<<<<<<<<<<<<<<< 视觉模型推理完毕!''')
             return output_text
     except torch.cuda.OutOfMemoryError as e:
         raise MemoryError(f"model_call 异常: 视觉模型调调用过程显存不足，请检查是否使用了GPU：{e}")
@@ -350,7 +348,8 @@ def _call_tts(text:str)->bytes:
 
         # 从输出中提取生成的 WAV 音频数据
         wav = output[OutputKeys.OUTPUT_WAV]
-        logging.info(f"audio type - {type(wav)}")
+        logging.info(f'''
+{"---"*10}\naudio type - {type(wav)}\n<<<<<<<<<<<<<<<<<<< 音频模型处理完毕!''')
 
         return wav
     except Exception as e:

@@ -18,6 +18,8 @@ def generate_image_html(words: list, current_image: NDArray) -> str:
     返回值:
         str: 生成的HTML代码，用于在网页中显示图片及其标注信息。
     """
+    logging.info(f"Frontend:生成图片及标注html代码中\n     @words: {words}\n")
+
 
     # 转换颜色空间到 BGR (OpenCV 默认)
     current_image_bgr = cv2.cvtColor(current_image, cv2.COLOR_RGB2BGR)
@@ -225,21 +227,30 @@ def generate_badge_html(words: list,) -> str:
     """
 
 
-def generate_context_list_html(contexts: list) -> str:
-    """生成语境列表HTML"""
+def generate_context_list_html(contexts_list: list) -> str:
+    """生成语境列表HTML
+
+    Args:
+        contexts_list: 一个语境列表，其中每个语境都是一个字典，包含 "en" (英文), "cn" (中文), 和 "audio" (音频路径) 键。
+            例如: [{"en":"english!","cn":"中文！","audio":"path/to/audio"},...]
+
+    Returns:
+        包含语境列表的HTML字符串。
+    """
+    logging.info(f"Frontend:生成语境列表中\n     @context_list: {contexts_list}")
     context_items = "".join(
         f'''
         <div class="context-item">
             <div class="context-text">
-                <span class="english-text">{context}</span>
-                <button class="audio-button">🔊</button>
+                <span class="english-text">{context["en"]}</span>
             </div>
             <div class="translation-text">
-                {context}的翻译
+                {context["cn"]}
             </div>
+            <button class="audio-button" onclick="()=>{{new Audio({context["audio"]}).play()}}">🔊</button>
         </div>
         '''
-        for context in contexts
+        for context in contexts_list
     )
     return f'''
     <div class="context-list">
@@ -250,21 +261,49 @@ def generate_context_list_html(contexts: list) -> str:
         .context-list {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
+            padding: 16px;
         }
         .context-item {
-            border: 1px solid #ccc;
-            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: background-color 0.2s ease-in-out;
+        }
+        .context-item:hover {
+            background-color: #f0f0f0;
         }
         .context-text {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+        .translation-text {
+            color: #555;
+            line-height: 1.6;
         }
         .audio-button {
-            background: none;
+            background-color: #e0e7ff;
+            color: #4f46e5;
             border: none;
+            border-radius: 6px;
             cursor: pointer;
+            padding: 8px 12px;
+            font-size: 14px;
+            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+        }
+        .audio-button:hover {
+            background-color: #d1d5db;
+            color: #3730a3;
+        }
+        .audio-button:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3);
         }
     </style>
     '''
@@ -312,11 +351,23 @@ def test_generate_image_html():
 
     # 3. 调用函数生成HTML
     html_output = generate_image_html(words, current_image)
-
     print('success!')
-    # 5. 将生成的HTML代码写入test.html
     with open('test.html', 'w', encoding='utf-8') as file:
+        file.write(html_output)
+
+def test_context():
+    """演示如何使用 generate_context_list_html 函数."""
+    contexts = [
+        {"en": "Hello, world!", "cn": "", "audio": "path/to/hello.mp3"},
+        {"en": "How are you?", "cn": "", "audio": "path/to/how_are_you.mp3"},
+        {"en": "Goodbye!", "cn": "", "audio": "path/to/goodbye.mp3"},
+    ]
+
+    html_output = generate_context_list_html(contexts)
+    print('success!')
+    with open('test2.html', 'w', encoding='utf-8') as file:
         file.write(html_output)
 
 if __name__ == "__main__":
     test_generate_image_html()
+    test_context()

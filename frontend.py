@@ -2,7 +2,7 @@ import logging
 import gradio as gr
 from gradio.route_utils import get_root_url
 from gradio.processing_utils import save_bytes_to_cache,hash_bytes
-# from models import service, Level
+from models import service, Level
 from models import Level
 from typing import Dict, List, Generator,Tuple
 import base64
@@ -13,8 +13,8 @@ import cv2
 from html_utils import  generate_context_list_html,generate_image_html,generate_badge_html
 
 # 测试语句
-from test_frontend import MockModelService
-service = MockModelService()
+# from test_frontend import MockModelService
+# service = MockModelService()
 
 # 配置字典
 level_config = {
@@ -55,10 +55,10 @@ class PicTalkApp:
         result = service.get_img_info(img_array, self.current_level)
         logging.info("----------------------------")
         logging.info(f"Frontend: 图片处理完成\n处理结果 - {result}")
-        
+
         self.current_image = image
         self.current_words = result["words"]
-        
+
         # 生成HTML显示内容
         logging.info("Frontend: 生成图片显示HTML")
         html_content = generate_image_html(result["words"], self.current_image)
@@ -66,7 +66,17 @@ class PicTalkApp:
 
         # 生成单词badge
         badges = self.generate_word_badges("")
-        return html_content,result["desc"],result["translation"],badges
+
+        # 对 desc 和 translation 中的单词进行 Markdown 加粗
+        desc = result["desc"]
+        translation = result["translation"]
+        for word_data in result["words"]:
+            word = word_data["text"]
+            desc = desc.replace(word, f"**{word}**")
+            translation = translation.replace(word_data["translation"], f"**{word_data['translation']}**")
+
+
+        return html_content, desc, translation, badges
         
     
     def generate_conversation(self, chat_history: List,msg:str) -> Generator[str, None, None]:
@@ -105,7 +115,8 @@ class PicTalkApp:
         """生成新语境"""
         logging.info("Frontend: 开始生成新语境")
         logging.info("----------------------------")
-        context = service.get_new_context(words, self.current_level)
+        text_list = [w.get("text") for w in words if w.get("text")]
+        context = service.get_new_context(text_list, self.current_level)
         path = self._get_audio(context,demo,request)
         self.context_list.append({"en":context,"cn":"","audio":path})
         html_content = generate_context_list_html(self.context_list)
@@ -185,8 +196,8 @@ def create_interface():
                 with gr.Tabs():
                     with gr.Tab("描述语段"):
                         with gr.Column():
-                            desc_en = gr.Markdown("### 描述语段显示")
-                            desc_cn = gr.Markdown("### 中文翻译")
+                            desc_en = gr.Markdown()
+                            desc_cn = gr.Markdown()
                     
                     with gr.Tab("对话"):
                         chatbot = gr.Chatbot(label="ChatBot", type="messages")
@@ -208,7 +219,6 @@ def create_interface():
                                         label="输入单词",
                                         placeholder="输入单词后按回车"
                                     )
-                                with gr.Column(scale=1):
                                     context_button = gr.Button("生成语境")
                             # 语境列表
                             context_list = gr.HTML()

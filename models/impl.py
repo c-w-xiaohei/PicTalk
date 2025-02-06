@@ -10,6 +10,7 @@ from models.prompt import (
     prompt_second_second,
     prompt_second_third,
     prompt_second_forth,
+    prompt_second_fifth,
     prompt_second_fix,
     prompt_translate,
     prompt_context,
@@ -23,47 +24,6 @@ import numpy as np
 import base64
 import io
 import json
-
-
-# 内置函数，将字符串转换为列表，字符串样例：[[objectA,(x1,y1),(x2,y2)],[objectB,(x1,y1),(x2,y2)],...untill no objects left]
-def _parse_detection_boxes(
-    detection_boxes_str: str,
-) -> List[Dict[str, Union[str, List[Tuple[int, int]]]]]:
-    try:
-
-        # 去除外层方括号
-        detection_boxes_str = detection_boxes_str.strip()[1:-1]
-
-        # 分割每个对象的条目
-        entries = detection_boxes_str.split("], [")
-
-        # 初始化结果列表
-        result_list = []
-
-        for entry in entries:
-            # 去掉可能存在的前后空格和多余的方括号
-            entry = entry.strip().strip("[]")
-
-            # 分割对象名称和坐标
-            parts = entry.split(", ")
-
-            if len(parts) != 3:
-                continue
-
-            object_name = parts[0].strip("'")
-
-            # 解析坐标
-            coord1 = tuple(map(int, parts[1].strip("()").split(",")))
-            coord2 = tuple(map(int, parts[2].strip("()").split(",")))
-
-            # 构建字典项
-            result_list.append({"word": object_name, "coordinates": [coord1, coord2]})
-
-        return result_list
-
-    except Exception as e:
-        print(f"解析检测框字符串时出错: {e}")
-        return []
 
 
 def _nd_to_base64(img: NDArray):
@@ -145,10 +105,16 @@ class ModelServiceDefaultImpl(ModelService):
         prompt1 = prompt_second_first()
         messages1 = [
             {
+                "role": "system",
+                "content":[
+                    {"type" : "text",
+                    "text" :  prompt1}
+                ]
+            },
+            {
                 "role": "user",
                 "content": [
-                    {"type": "image", "image": base64_encoded_data},
-                    {"type": "text", "text": prompt1},
+                    {"type": "image", "image": base64_encoded_data}
                 ],
             }
         ]
@@ -159,9 +125,9 @@ class ModelServiceDefaultImpl(ModelService):
             {"role": "system", "content": prompt_fix},
             {"role": "user", "content": List},
         ]
-        List_words = call_qwen_finetuned(message_fix)
+        List_words_chinese = call_qwen_finetuned(message_fix)
         prompt2 = prompt_second_second()
-        Add = str(level) + "," + List_words
+        Add = str(level) + "," + List_words_chinese
         message2 = [
             {"role": "system", "content": prompt2},
             {"role": "user", "content": Add},
@@ -171,16 +137,15 @@ class ModelServiceDefaultImpl(ModelService):
 
         english_sentence = sentence_dict.get("en", "None")
         chinese_sentence = sentence_dict.get("cn", "空")
-
+        user_text = english_sentence + List_words_chinese
         prompt3 = prompt_second_third()
         message2 = [
             {"role": "system", "content": prompt3},
-            {"role": "user", "content": english_sentence},
+            {"role": "user", "content": user_text},
         ]
         List_words = call_qwen_finetuned(message2)
-        # Paet3
+        # Part3
         prompt4 = prompt_second_forth()  # 这里还需要调试：提示词达不到效果
-        prompt4 += List_words
         messages2 = [
             {
                 "role": "system",
@@ -194,47 +159,64 @@ class ModelServiceDefaultImpl(ModelService):
                 ],
             },
         ]
-        Part3 = call_vl(messages2)
+        bbox_str = call_vl(messages2)
         # Part4
-        List_list = _parse_detection_boxes(Part3)
-        output_dict = {
+        bbox_str_cleaned = bbox_str.strip('```json\n').strip() #去除json和换行符
+        result = eval(bbox_str_cleaned)
+        List_words_chinese_cleaned =  List_words_chinese.strip('```json\n').strip() #去除json和换行符
+        translations = eval(List_words_chinese_cleaned)
+        words_list = []
+        for index, item in enumerate(result):
+           text = item[0]
+           location = [result[index][1],result[index][2]]  # 保留元组格式
+           translation = translations[index]  # 根据索引获取对应的中文翻译
+    
+           word_dict = {
+        "text": text,
+        "location": location,
+        "translation": translation
+        }
+           words_list.append(word_dict)
+        
+        output_list = {
             "desc": english_sentence,
-            "translation": chinese_sentence,
-            "words": List_list,
+            "translation": chinese_sentence,  
+            "words": words_list,
         }
-        return output_dict
-
-    """  
-        return {
-            "desc": "The description of the image",
-            "translation": "图片的描述",
-            "words": [
-                ("word1", ("x1", "y1"), ("x2", "y2")),
-                ("word2", ("x1", "y1"), ("x2", "y2")),
-                ("word3", ("x1", "y1"), ("x2", "y2"))
-            ],
-            "words_translation": ["单词1", "单词2", "单词3"]
-        }
-    """
-
+        return output_list
+        """
+            {
+            "desc":"A bird hit a laptop, spilling coffee from a cup. A mobilephone fell in the dustbin.",
+            "translation":"一只鸟撞到了一台平板， 从杯子中溢出了咖啡, 一部手机掉进了垃圾箱。",
+           "words":[
+                {"text":"laptop","location":[("123","456"),("126","467")],"translation":"平板"},
+               { "text":"bird","location":[("100","200"),("110","210")],"translation":"鸟"},
+                {"text":"coffee","location":[("300","400"),("310","410")],"translation":"咖啡"},
+                {"text":"cup","location":[("320","420"),("330","430")],"translation":"杯子"},
+                {"text":"mobilephone","location":[("500","600"),("510","610")],"translation":"手机"},
+                {"text":"dustbin","location":[("520","620"),("530","630")],"translation":"垃圾箱"}                    ]
+                }
+      """
     def get_conversation(
         self, conversation: list, level: Level, img: NDArray
     ) -> Generator[str, None, None]:
         base64_encoded_data = _nd_to_base64(img)
 
         # 与vl模型进行对话
-        conversation = str(conversation)
-        prompt1 = prompt_contract()
-
-        messages = [
+        message_system = [
             {
-                "role": "user",
-                "content": [
-                    {"type": "image", "image": base64_encoded_data},
-                    {"type": "text", "text": conversation},
-                ],
-            }
+            "role":"system",
+            "content":[
+                {
+                    "type": "text",
+                    "text": "你是一名专业的图像分析专家"
+                }
+            ]
+        }
         ]
+        messages = message_system + conversation
+        
+  
         context = call_vl(messages)
         # 根据对应等级进行翻译
         context = str(level) + "," + context

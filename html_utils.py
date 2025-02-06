@@ -258,54 +258,56 @@ def generate_context_list_html(contexts_list: list) -> str:
     </div>
     ''' + r'''
     <style>
-        .context-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            padding: 16px;
-        }
-        .context-item {
-            background-color: #f9f9f9;
-            border: 1px solid #eee;
-            border-radius: 8px;
-            padding: 16px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            transition: background-color 0.2s ease-in-out;
-        }
-        .context-item:hover {
-            background-color: #f0f0f0;
-        }
-        .context-text {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #333;
-        }
-        .translation-text {
-            color: #555;
-            line-height: 1.6;
-        }
-        .audio-button {
-            background-color: #e0e7ff;
-            color: #4f46e5;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            padding: 8px 12px;
-            font-size: 14px;
-            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
-        }
-        .audio-button:hover {
-            background-color: #d1d5db;
-            color: #3730a3;
-        }
-        .audio-button:focus {
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3);
-        }
-    </style>
+    .context-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px;
+        background-color: var(--background-fill-primary);
+        color: var(--body-text-color);
+    }
+    .context-item {
+        background-color: var(--block-background-fill);
+        border: 1px solid var(--border-color-primary);
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        transition: background-color 0.2s ease-in-out;
+    }
+    .context-item:hover {
+        background-color: var(--color-accent-soft);
+    }
+    .context-text {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: var(--body-text-color);
+    }
+    .translation-text {
+        color: var(--body-text-color-subdued);
+        line-height: 1.6;
+    }
+    .audio-button {
+        background-color: var(--block-label-background-fill);
+        color: var(--link-text-color);
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        padding: 8px 12px;
+        font-size: 14px;
+        transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    }
+    .audio-button:hover {
+        background-color: var(--link-text-color-hover);
+        color: var(--link-text-color-active);
+    }
+    .audio-button:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3);
+    }
+</style>
     '''
 
 def test_generate_image_html():

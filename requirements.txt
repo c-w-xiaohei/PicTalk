@@ -1,0 +1,9 @@
+gradio==5.15.0
+modelscope==1.22.2
+numpy==2.2.2
+opencv_python==4.10.0.84
+opencv_python_headless==4.10.0.84
+Pillow==11.1.0
+qwen_vl_utils==0.0.10
+torch==2.3.1+cpu
+transformers==4.47.1

@@ -7,7 +7,7 @@ def prompt_second_first():
     return natural_message 
 
 def prompt_second_fix():
-    natural_message = '''你是一名提取专家，请你根据描述列表和CERF英语等级提取单词列表,并输出json格式，
+    natural_message = '''你是一名提取专家，请你根据描述列表和CERF英语等级提取实体单词列表,省略形容词，并输出json格式，
     例如，input:{"global_caption":"详细描述", "caption_list":["实体A的描述", "实体B的描述", "实体C的描述", ...直到所有实体都被描述完]},level,
     output:{"实体A的英文":"实体A的中文翻译","实体B的英文":"实体B的中文翻译","实体C的英文":"实体C的中文翻译",...直至所有的实体全部输出]
     '''

@@ -28,7 +28,7 @@ def image_to_ndarray(absolute_path):
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # 基于当前目录构建目标图像文件的绝对路径
-absolute_path = os.path.join(current_dir, 'hhh.jpg')
+absolute_path = os.path.join(current_dir, 'hh.webp')
 
 # 调用函数并获取结果
 ndarray_image = image_to_ndarray(absolute_path)

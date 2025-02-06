@@ -247,7 +247,7 @@ def generate_context_list_html(contexts_list: list) -> str:
             <div class="translation-text">
                 {context["cn"]}
             </div>
-            <button class="audio-button" onclick="()=>{{new Audio({context["audio"]}).play()}}">🔊</button>
+            <button class="audio-button" onclick='new Audio("{context["audio"]}").play()'>🔊</button>
         </div>
         '''
         for context in contexts_list

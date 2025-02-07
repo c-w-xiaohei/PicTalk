@@ -4,7 +4,7 @@ import base64
 import json
 import logging
 
-
+logger = logging.getLogger("gradio")
 def generate_image_html(words: list, current_image: NDArray) -> str:
     """生成包含图片及标注的HTML代码。
 
@@ -18,7 +18,7 @@ def generate_image_html(words: list, current_image: NDArray) -> str:
     返回值:
         str: 生成的HTML代码，用于在网页中显示图片及其标注信息。
     """
-    logging.info(f"Frontend:生成图片及标注html代码中\n     @words: {words}\n")
+    logger.debug(f"Frontend:生成图片及标注html代码中\n     @words: {words}\n")
 
 
     # 转换颜色空间到 BGR (OpenCV 默认)
@@ -36,7 +36,6 @@ def generate_image_html(words: list, current_image: NDArray) -> str:
     # 将压缩后的图片转为base64编码
     img_base64 = base64.b64encode(buffer).decode("utf-8")
     img_src = f"data:image/jpeg;base64,{img_base64}"
-    logging.info("Frontend: 生成图片显示HTML 压缩后")
 
     # 生成单词badge，包含翻译内容
     badges = "".join(
@@ -59,7 +58,6 @@ def generate_image_html(words: list, current_image: NDArray) -> str:
         if word.get("text") and word.get("translation") and word.get("location")
     }
     word_info_json = json.dumps(word_info) if word_info else "{}"
-    logging.info("Frontend: 生成中...")
 
     # 生成HTML代码
     html_content = f"""
@@ -237,7 +235,7 @@ def generate_context_list_html(contexts_list: list) -> str:
     Returns:
         包含语境列表的HTML字符串。
     """
-    logging.info(f"Frontend:生成语境列表中\n     @context_list: {contexts_list}")
+    logger.debug(f"Frontend:生成语境列表中\n     @context_list: {contexts_list}")
     context_items = "".join(
         f'''
         <div class="context-item">

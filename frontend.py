@@ -1,21 +1,48 @@
 import logging
+from logging.handlers import MemoryHandler
+from aspect import exception_to_logs
 import gradio as gr
 from gradio.route_utils import get_root_url
-from gradio.processing_utils import save_bytes_to_cache,hash_bytes,save_img_array_to_cache
+from gradio.processing_utils import save_bytes_to_cache, hash_bytes, save_img_array_to_cache
 from models import service, Level
-from models import Level
-from typing import Dict, List, Generator,Tuple
-import base64
-import os
+from typing import List, Generator,Optional,Dict
 from PIL import Image
 from numpy.typing import NDArray
-from numpy import frombuffer,uint8
+from numpy import frombuffer, uint8
 import cv2
-from html_utils import  generate_context_list_html,generate_image_html,generate_badge_html,generate_processing_html
+from html_utils import generate_context_list_html, generate_image_html, generate_badge_html, generate_processing_html
+
+
+# 引入抽象类
 
 # 测试语句
 # from test_frontend import MockModelService
 # service = MockModelService()
+
+"""
+- 日志配置
+
+"""
+logger = logging.getLogger("gradio")
+
+console = logging.StreamHandler()
+console.setLevel(logging.DEBUG)
+
+handlers:Dict[str,MemoryHandler]  = {}
+def initialize_handler(request: gr.Request):
+    # 创建MemoryHandler来缓存日志
+    memory_handler = MemoryHandler(capacity=1000, flushLevel=logging.ERROR,target=console,flushOnClose=False)
+    handlers[request.session_hash] = memory_handler
+    logger.addHandler(memory_handler)
+
+def cleanup_handler(request: gr.Request):
+    session_hash = request.session_hash
+    if session_hash in handlers:
+        handler = handlers[session_hash]
+        handler.close()
+        logger.removeHandler(handler)
+        del handlers[session_hash]
+
 
 # 配置字典
 level_config = {
@@ -29,170 +56,22 @@ level_config = {
     }
 }
 
-class PicTalkApp:
+class StateType():
     def __init__(self):
-        self.current_level = Level.A1
-        self.current_image:NDArray = None
-        self.image_url:str = None
-        self.current_words = [] # eg: [{"text": "laptop", "location": [(10,150),(560,500)], "translation": "平板"},...]
-        self.context_list = [] # eg: [{"en":"english!","cn":"中文！","audio":"path/to/audio"},...]
-    
-    def test_level(self, text: str, standard: str) -> str:
-        """测试用户英语水平"""
-        logging.info("Frontend: 开始测试用户英语水平")
-        level = service.test_level(text)
-        self.current_level = level
-        logging.info(f"Frontend: 测试结果 - {level}")
-        return self._format_level(level, standard)
-
-    def compress_image(self) -> None:
-        if self.current_image is None:
-            return
-        # 若图片长宽大于1000px则压缩减半
-        image = self.current_image
-        if image.shape[0] > 1000 or image.shape[1] > 1000:
-            image = cv2.resize(image, (image.shape[1] // 2, image.shape[0] // 2), interpolation=cv2.INTER_AREA)
-        _, buffer = cv2.imencode('.jpg', image, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
-        # self.current_image = frombuffer(buffer, dtype=uint8)
-        logging.info("图片压缩成功！")
-            
-    def process_image(self):
-        """处理上传的图片"""
-        if  self.current_image is None:
-            logging.warning("Frontend: 未上传图片")
-            return "<h1>请上传图片</h3>","","",""
-
-        logging.info("Frontend: 开始处理图片")
-        logging.info("----------------------------") 
-
-        result_gen = service.get_img_info(self.image_url, self.current_level)
-        for step in result_gen:
-            if step == "<END>":break
-            yield generate_processing_html(step), "", "", ""
-        result = next(result_gen)
-        logging.info("----------------------------")
-        logging.info(f"Frontend: 图片处理完成\n处理结果 - {result}")
-
-        self.current_image = image
-        self.current_words = result["words"]
-
-        # 生成HTML显示内容
-        logging.info("Frontend: 生成图片显示HTML")
-        html_content = generate_image_html(result["words"], self.current_image)
-        logging.info("result - " + html_content[:300] + "...")
-
-        # 生成单词badge
-        badges = self.generate_word_badges("")
-
-        # 对 desc 和 translation 中的单词进行 Markdown 加粗
-        desc = result["desc"]
-        translation = result["translation"]
-        for word_data in result["words"]:
-            word = word_data["text"]
-            desc = desc.replace(word, f"**{word}**")
-            translation = translation.replace(word_data["translation"], f"**{word_data['translation']}**")
-
-        yield html_content, desc, translation, badges
-        
-    
-    def generate_conversation(self, chat_history: List,msg:str) -> Generator[str, None, None]:
-        """生成对话"""
-        if self.current_image is None:
-            logging.warning("Frontend: 未上传图片，无法生成对话")
-            yield {"role": "assistant", "content": "请先上传图片"},""
-            return
-        
-        logging.info("Frontend: 开始生成对话")
-        logging.info("----------------------------")
-        if msg:
-            chat_history.append({"role": "user", "content": msg})
-        logging.info(f"@chat_history: {chat_history}")
-        # 直接使用当前图像数组
-        img = self.current_image
-        # 调用模型服务并处理流式输出
-        streamer = service.get_conversation(chat_history, self.current_level, img)
-        chat_history.append({"role": "assistant", "content": ""})
-        for chunk in streamer:
-            chat_history[-1]["content"] += chunk
-            yield chat_history,""
-        logging.info("----------------------------")
-        logging.info("Frontend: 对话生成完成")
-
-    def generate_word_badges(self, input_word:str) -> str:
-        """生成单词标签"""
-        logging.info("Frontend: 开始生成单词标签")
-        if input_word:
-            self.current_words.append({"text":input_word})
-        badges = generate_badge_html(self.current_words)
-        logging.info(f"Frontend: 单词标签生成完成 - {badges[:100]}")
-        return badges
-    
-    def generate_new_context(self, word: str,demo:gr.Blocks,request:gr.Request):
-        """生成新语境"""
-        logging.info("Frontend: 开始生成新语境")
-        logging.info("----------------------------")
-        # 提示用户正在处理单词列表
-
-        text_list = [w.get("text") for w in self.current_words if w.get("text")]
-        if word:
-            text_list.append(word)
-        
-        # 提示用户正在获取新语境
-        yield generate_processing_html("(0/2) - 正在获取新语境..."), ""
-        context = service.get_new_context(text_list, self.current_level)
-        yield generate_processing_html("(1/2) - 正在获取音频..."), ""
-        path = self.get_audio(context, demo, request)
-        self.context_list.append({"en": context, "cn": "", "audio": path})
-        html_content = generate_context_list_html(self.context_list)
-        logging.info("----------------------------")
-        logging.info(f"Frontend: 新语境生成完成 - {html_content}")
-        yield html_content
-    
-    def get_audio(self,text:str,demo:gr.Blocks,request: gr.Request):
-        logging.info("Frontend:开始获取音频")
-        root = get_root_url(
-            request=request, route_path="/gradio_api/queue/join", root_path=demo.root_path
-        )   
-        wav = service.get_audio(text)
-        path = save_bytes_to_cache(wav,"audio.wav",demo.GRADIO_CACHE)
-    # 更新音频和图片URL
-        url = f"{root}/gradio_api/file={path}"
-        return url
-
-    def store_img(self,img:NDArray,demo:gr.Blocks,request: gr.Request):
-        if img is None:
-            return
-        self.current_image = img
-        self.compress_image()
-        root = get_root_url(
-            request=request, route_path="/gradio_api/queue/join", root_path=demo.root_path
-        )   
-        path = save_img_array_to_cache(self.current_image,demo.GRADIO_CACHE,"jpeg")
-    # 更新音频和图片URL
-        url = f"{root}/gradio_api/file={path}"
-        self.image_url = url
-    
-    def _format_level(self, level: Level, standard: str) -> str:
-        """格式化水平显示"""
-        formatted_level = level.name
-        if standard == "高考成绩（全国卷）":
-            if level == Level.A2 or level == Level.A1:
-                formatted_level = "42.5%~50%: A1/A2"
-            elif level == Level.B1:
-                formatted_level = "57.5%~65%: B1"
-            elif level == Level.B2:
-                formatted_level = "72.5%~87.5%: B2"
-            elif level == Level.C1 or level == Level.C2:
-                formatted_level = "90%~97.5%: C1/C2"
-        logging.info(f"Frontend: 格式化水平显示 - {formatted_level}")
-        return formatted_level
-
-# 创建应用实例
-app = PicTalkApp()
+        self.current_image: Optional[NDArray] = None
+        self.current_words: List[dict] = []
+        self.chat_history: List[dict] = []
+        self.context_list: List[dict] = []
+        self.current_level: Optional[Level] = None
+        self.image_url: Optional[str] = None
+        self.log_handler:Optional[MemoryHandler] = None
 
 # 定义界面布局
 def create_interface():
     with gr.Blocks() as demo:
+        # 初始化 State 对象
+        state:StateType = gr.State(StateType())
+
         with gr.Row():
             # 左侧控制面板
             with gr.Column(scale=3):
@@ -262,9 +141,9 @@ def create_interface():
         
         # 交互逻辑
         msg.submit(
-            fn=app.generate_conversation,
-            inputs=[chatbot, msg],
-            outputs=[chatbot,msg],
+            fn=generate_conversation,
+            inputs=[chatbot, msg, state],
+            outputs=[chatbot, msg],
             api_name="chat_answer"
         )
 
@@ -277,34 +156,192 @@ def create_interface():
             outputs=level_select
         )
         test_button.click(
-            fn=app.test_level,
-            inputs=[level_test_input, level_standard],
+            fn=test_level,
+            inputs=[level_test_input, level_standard, state],
             outputs=level_select
         )
 
-        def _handle_image_input(image_input:NDArray, req:gr.Request):
-            app.store_img(image_input, demo, req)
-            for i in app.process_image():
+        def _handle_image_input(image_input: NDArray, req: gr.Request, state: StateType):
+            store_img(image_input, demo, req, state)
+            for i in process_image(state):
                 yield i
         
         image_input.change(
             fn=_handle_image_input,
-            inputs=[image_input],
-            outputs=[image_display,desc_en, desc_cn,word_badges]
+            inputs=[image_input, gr.Request(), state],
+            outputs=[image_display, desc_en, desc_cn, word_badges]
         )
         
         word_input.submit(
-            fn=lambda word, _: app.generate_word_badges(word),
-            inputs=[word_input, word_badges],
+            fn=lambda word, _, state: generate_word_badges(word, state),
+            inputs=[word_input, word_badges, state],
             outputs=word_badges
         )
         
-        def _handel_context_button(req:gr.Request):
-            return app.generate_new_context("",demo,req)
+        def _handel_context_button(req: gr.Request, state: gr.State):
+            return generate_new_context("", demo, req, state)
         
         context_button.click(
             fn=_handel_context_button,
+            inputs=[gr.Request(), state],
             outputs=context_list
         )
-    
+        demo.load(initialize_handler)
+        demo.unload(cleanup_handler)
     return demo
+
+@exception_to_logs(logger, custom_message="测试水平时出现错误")
+def test_level(text: str, standard: str, state: StateType) -> str:
+    """测试用户英语水平"""
+    logger.info("Frontend: 开始测试用户英语水平")
+    level = service.test_level(text)
+    state.current_level = level
+    logger.info(f"Frontend: 测试结果 - {level}")
+    return _format_level(level, standard)
+
+@exception_to_logs(logger, custom_message="压缩图片时出现错误")
+def compress_image(state: StateType) -> None:
+    if state.current_image is None:
+        return
+    # 若图片长宽大于1000px则压缩减半
+    image = state.current_image
+    if image.shape[0] > 1000 or image.shape[1] > 1000:
+        image = cv2.resize(image, (image.shape[1] // 2, image.shape[0] // 2), interpolation=cv2.INTER_AREA)
+    _, buffer = cv2.imencode('.jpg', image, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
+    state.current_image = frombuffer(buffer, dtype=uint8)
+    logger.info("图片压缩成功！")
+
+@exception_to_logs(logger, custom_message="处理图片时出现错误")
+def process_image(state: StateType):
+    """处理上传的图片"""
+    if state.current_image is None:
+        return "<h1>请上传图片</h3>", "", "", ""
+
+    logger.info("Frontend: 开始处理图片")
+    logger.info("----------------------------") 
+
+    result_gen = service.get_img_info(state.image_url, state.current_level)
+    for step in result_gen:
+        if step == "<END>": break
+        yield generate_processing_html(step), "", "", ""
+    result = next(result_gen)
+    logger.info("----------------------------")
+    logger.info(f"Frontend: 图片处理完成\n处理结果 - {result}")
+
+    state.current_words = result["words"]
+
+    # 生成HTML显示内容
+    logger.info("Frontend: 生成图片显示HTML")
+    html_content = generate_image_html(result["words"], state.current_image)
+    logger.info("result - " + html_content[:300] + "...")
+
+    # 生成单词badge
+    badges = generate_word_badges("", state)
+
+    # 对 desc 和 translation 中的单词进行 Markdown 加粗
+    desc = result["desc"]
+    translation = result["translation"]
+    for word_data in result["words"]:
+        word = word_data["text"]
+        desc = desc.replace(word, f"**{word}**")
+        translation = translation.replace(word_data["translation"], f"**{word_data['translation']}**")
+
+    yield html_content, desc, translation, badges
+
+@exception_to_logs(logger, custom_message="与用户进行对话时出现错误") 
+def generate_conversation(chat_history: List, msg: str, state: StateType) -> Generator[str, None, None]:
+    """生成对话"""
+    if state.current_image is None:
+        logger.warning("Frontend: 未上传图片，无法生成对话")
+        yield {"role": "assistant", "content": "请先上传图片"}, ""
+        return
+    
+    logger.info("Frontend: 开始生成对话")
+    logger.info("----------------------------")
+    if msg:
+        chat_history.append({"role": "user", "content": msg})
+    logger.info(f"@chat_history: {chat_history}")
+    # 直接使用当前图像数组
+    img = state.current_image
+    # 调用模型服务并处理流式输出
+    streamer = service.get_conversation(chat_history, state.current_level, img)
+    chat_history.append({"role": "assistant", "content": ""})
+    for chunk in streamer:
+        chat_history[-1]["content"] += chunk
+        yield chat_history, ""
+    logger.info("----------------------------")
+    logger.info("Frontend: 对话生成完成")
+
+@exception_to_logs(logger, custom_message="生成单词标签时出现错误")
+def generate_word_badges(input_word: str, state: StateType) -> str:
+    """生成单词标签"""
+    logger.info("Frontend: 开始生成单词标签")
+    if input_word:
+        state.current_words.append({"text": input_word})
+    badges = generate_badge_html(state.current_words)
+    logger.info(f"Frontend: 单词标签生成完成 - {badges[:100]}")
+    return badges
+    
+@exception_to_logs(logger, custom_message="生成新语境时出现错误") 
+def generate_new_context(word: str, demo: gr.Blocks, request: gr.Request, state: StateType):
+    """生成新语境"""
+    logger.info("Frontend: 开始生成新语境")
+    logger.info("----------------------------")
+    # 提示用户正在处理单词列表
+
+    text_list = [w.get("text") for w in state.current_words if w.get("text")]
+    if word:
+        text_list.append(word)
+    
+    # 提示用户正在获取新语境
+    yield generate_processing_html("(0/2) - 正在获取新语境..."), ""
+    context = service.get_new_context(text_list, state.current_level)
+    yield generate_processing_html("(1/2) - 正在获取音频..."), ""
+    path = get_audio(context, demo, request)
+    state.context_list.append({"en": context, "cn": "", "audio": path})
+    html_content = generate_context_list_html(state.context_list)
+    logger.info("----------------------------")
+    logger.info(f"Frontend: 新语境生成完成 - {html_content}")
+    yield html_content
+
+@exception_to_logs(logger, custom_message="获取音频时出现错误") 
+def get_audio(text: str, demo: gr.Blocks, request: gr.Request):
+    logging.info("Frontend:开始获取音频")
+    root = get_root_url(
+        request=request, route_path="/gradio_api/queue/join", root_path=demo.root_path
+    )   
+    wav = service.get_audio(text)
+    path = save_bytes_to_cache(wav, "audio.wav", demo.GRADIO_CACHE)
+    # 更新音频和图片URL
+    url = f"{root}/gradio_api/file={path}"
+    return url
+
+@exception_to_logs(logger, custom_message="存储图像时出现错误") 
+
+def store_img(img: NDArray, demo: gr.Blocks, request: gr.Request, state: StateType):
+    if img is None:
+        return
+    state.current_image = img
+    compress_image(state)
+    root = get_root_url(
+        request=request, route_path="/gradio_api/queue/join", root_path=demo.root_path
+    )   
+    path = save_img_array_to_cache(state.current_image, demo.GRADIO_CACHE, "jpeg")
+    # 更新音频和图片URL
+    url = f"{root}/gradio_api/file={path}"
+    state.image_url = url
+
+def _format_level(level: Level, standard: str) -> str:
+    """格式化水平显示"""
+    formatted_level = level.name
+    if standard == "高考成绩（全国卷）":
+        if level == Level.A2 or level == Level.A1:
+            formatted_level = "42.5%~50%: A1/A2"
+        elif level == Level.B1:
+            formatted_level = "57.5%~65%: B1"
+        elif level == Level.B2:
+            formatted_level = "72.5%~87.5%: B2"
+        elif level == Level.C1 or level == Level.C2:
+            formatted_level = "90%~97.5%: C1/C2"
+    logging.info(f"Frontend: 格式化水平显示 - {formatted_level}")
+    return formatted_level

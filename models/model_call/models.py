@@ -24,6 +24,8 @@ import multiprocessing
 import logging
 import copy
 
+logger = logging.getLogger("gradio")
+
 
 """
 - 路径配置
@@ -98,7 +100,7 @@ def _run_in_process(func, queue, *args, **kwargs):
 def call_qwen_finetuned(
     messages: list, stream: bool = False
 ) -> str | Generator[str, None, None]:
-    logging.info(
+    logger.debug(
         f"""
 >>>>>>>>>>>>>>>>>>> 调用微调模型:\n @messages: {json.dumps(messages, indent=4, ensure_ascii=False)}\n @stream: {stream}\n{'---'*10}"""
     )
@@ -167,7 +169,7 @@ def call_vl(messages: dict) -> str:
 
     # 将处理后的 messages 转换为 JSON 字符串并记录日志
     log_msg = json.dumps(log_messages, indent=4, ensure_ascii=False)
-    logging.info(
+    logger.debug(
         f"""
 >>>>>>>>>>>>>>>>>>> 调用视觉模型:\n @messages: {log_msg}\n{"---"*10}"""
     )
@@ -191,7 +193,7 @@ def call_vl(messages: dict) -> str:
 
 def call_tts(text: str) -> bytes:
     torch.cuda.empty_cache()
-    logging.info(
+    logger.debug(
         f"""
 >>>>>>>>>>>>>>>>>>> 调用音频模型:\n @text: {text}\n{"---"*10}"""
     )
@@ -251,13 +253,12 @@ def _call_qwen_finetuned(
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # 加载模型和分词器
-        logging.info("微调大模型加载中...")
+        logger.info("微调大模型加载中...")
         model = AutoModelForCausalLM.from_pretrained(
             model_path, torch_dtype="auto", device_map={"": device}
         )
         tokenizer = AutoTokenizer.from_pretrained(model_path)
 
-        logging.info("微调大模型加载成功!")
 
         text = tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True, streamer=stream
@@ -266,7 +267,7 @@ def _call_qwen_finetuned(
 
         if not stream:
             # 直接生成响应
-            logging.info("微调大模型开始推理...")
+            logger.info("微调大模型开始推理...")
 
             generated_ids = model.generate(**model_inputs, max_new_tokens=512)
 
@@ -279,7 +280,7 @@ def _call_qwen_finetuned(
                 0
             ]
 
-            logging.info(
+            logger.debug(
                 f"""
 {"---"*10}\n @response: {response}\n<<<<<<<<<<<<<<<<<<< 微调大模型推理完毕!"""
             )
@@ -297,7 +298,7 @@ def _call_qwen_finetuned(
             thread = Thread(target=model.generate, kwargs=generation_kwargs)
             thread.start()
 
-            logging.info(
+            logger.info(
                 f"""
 {"---"*10}\n @response(流式输出模式): {streamer}\n<<<<<<<<<<<<<<<<<<< 微调大模型推理完毕!"""
             )
@@ -371,7 +372,7 @@ def _call_vl_inference(messages:list)->str:
 
         output_text = response["choices"][0]["message"]["content"]
 
-        logging.info(
+        logger.info(
             f"""
     {"---"*10}\n @output_text: {output_text}\n<<<<<<<<<<<<<<<<<<< 视觉模型推理完毕!"""
         )
@@ -432,11 +433,10 @@ def _call_vl(messages:list)->str:
  
     try:
             model_dir = _get_model(Model.VL)
-            logging.info("视觉模型加载中...")
+            logger.info("视觉模型加载中...")
             model = Qwen2VLForConditionalGeneration.from_pretrained(
             model_dir, torch_dtype="auto", device_map="auto"
             )
-            logging.info("视觉模型加载完毕...")
 
             # The default range for the number of visual tokens per image in the model is 4-16384. You can set min_pixels and max_pixels according to your needs, such as a token count range of 256-1280, to balance speed and memory usage.
             min_pixels = 256*28*28
@@ -459,7 +459,7 @@ def _call_vl(messages:list)->str:
             inputs = inputs.to("cuda")
 
             # Inference: Generation of the output
-            logging.info("视觉模型推理中...")
+            logger.info("视觉模型推理中...")
             generated_ids = model.generate(**inputs, max_new_tokens=256)
             generated_ids_trimmed = [
                 out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
@@ -470,7 +470,7 @@ def _call_vl(messages:list)->str:
             if output_text is not None:
                 output_text = output_text[0]
 
-            logging.info(f'''
+            logger.info(f'''
 {"---"*10}\n @output_text: {output_text}\n<<<<<<<<<<<<<<<<<<< 视觉模型推理完毕!''')
             return output_text
     except torch.cuda.OutOfMemoryError as e:
@@ -489,7 +489,7 @@ def _call_tts(text: str) -> bytes:
 
         # 从输出中提取生成的 WAV 音频数据
         wav = output[OutputKeys.OUTPUT_WAV]
-        logging.info(
+        logger.info(
             f"""
 {"---"*10}\naudio type - {type(wav)}\n<<<<<<<<<<<<<<<<<<< 音频模型处理完毕!"""
         )

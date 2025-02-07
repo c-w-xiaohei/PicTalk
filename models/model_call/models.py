@@ -9,7 +9,7 @@ from transformers import TextIteratorStreamer
 from threading import Thread
 
 from enum import Enum
-from os import path,environ
+from os import path,environ,getenv
 import json 
 from typing import Generator
 
@@ -54,10 +54,18 @@ def _get_model(requested_model:Model) -> str :
 
 """
 
-PROCESS_CONFIG = {
+# 定义默认值
+DEFAULT_PROCESS_CONFIG = {
     Model.INSTURCT: True,
     Model.VL: True,
     Model.TTS: False
+}
+
+# 从环境变量中读取配置，如果未设置则使用默认值
+PROCESS_CONFIG = {
+    Model.INSTURCT: getenv('INSTRUCT_IN_PROCESS', str(DEFAULT_PROCESS_CONFIG[Model.INSTURCT])).lower() == 'true',
+    Model.VL: getenv('VL_IN_PROCESS', str(DEFAULT_PROCESS_CONFIG[Model.VL])).lower() == 'true',
+    Model.TTS: getenv('TTS_IN_PROCESS', str(DEFAULT_PROCESS_CONFIG[Model.TTS])).lower() == 'true'
 }
 
 def _run_in_process(func, queue, *args, **kwargs):

@@ -91,7 +91,7 @@ class PicTalkApp:
         """生成对话"""
         if self.current_image is None:
             logging.warning("Frontend: 未上传图片，无法生成对话")
-            yield {"role": "assistant", "content": "请先上传图片"}
+            yield {"role": "assistant", "content": "请先上传图片"},""
             return
         
         logging.info("Frontend: 开始生成对话")
@@ -106,7 +106,7 @@ class PicTalkApp:
         chat_history.append({"role": "assistant", "content": ""})
         for chunk in streamer:
             chat_history[-1]["content"] += chunk
-            yield chat_history
+            yield chat_history,""
         logging.info("----------------------------")
         logging.info("Frontend: 对话生成完成")
 
@@ -237,7 +237,7 @@ def create_interface():
         msg.submit(
             fn=app.generate_conversation,
             inputs=[chatbot, msg],
-            outputs=chatbot,
+            outputs=[chatbot,msg],
             api_name="chat_answer"
         )
 

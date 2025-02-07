@@ -29,11 +29,10 @@ class ModelService(ABC):
         pass
 
     @abstractmethod
-    def get_img_info(self, img: NDArray, level: 'Level') -> Dict:
+    def get_img_info(self, img: str|NDArray, level: 'Level') -> Generator[str|dict,None,None]:
         """
             Desc:
                 Return the information of the image, including a description of the image and the words within it along with corresponding bounding boxes, based on the user's level.
-                img: Numpy Data Araay
                 
             Usecase:
                 >>> get_img_info(img,Level.A1)
@@ -53,7 +52,7 @@ class ModelService(ABC):
         pass
 
     @abstractmethod
-    def get_conversation(self, conversation: List, level: 'Level', img: NDArray) -> Generator[str, None, None]:
+    def get_conversation(self, conversation: List, level: 'Level', img: NDArray|str) -> str:
         """
             Desc:
                 Return the generator of conversation, including the user's question and the assistant's answer, based on the user's level.

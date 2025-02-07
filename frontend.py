@@ -1,7 +1,7 @@
 import logging
 import gradio as gr
 from gradio.route_utils import get_root_url
-from gradio.processing_utils import save_bytes_to_cache,hash_bytes
+from gradio.processing_utils import save_bytes_to_cache,hash_bytes,save_img_array_to_cache
 from models import service, Level
 from models import Level
 from typing import Dict, List, Generator,Tuple
@@ -11,7 +11,7 @@ from PIL import Image
 from numpy.typing import NDArray
 from numpy import frombuffer,uint8
 import cv2
-from html_utils import  generate_context_list_html,generate_image_html,generate_badge_html
+from html_utils import  generate_context_list_html,generate_image_html,generate_badge_html,generate_processing_html
 
 # 测试语句
 # from test_frontend import MockModelService
@@ -33,6 +33,7 @@ class PicTalkApp:
     def __init__(self):
         self.current_level = Level.A1
         self.current_image:NDArray = None
+        self.image_url:str = None
         self.current_words = [] # eg: [{"text": "laptop", "location": [(10,150),(560,500)], "translation": "平板"},...]
         self.context_list = [] # eg: [{"en":"english!","cn":"中文！","audio":"path/to/audio"},...]
     
@@ -43,24 +44,32 @@ class PicTalkApp:
         self.current_level = level
         logging.info(f"Frontend: 测试结果 - {level}")
         return self._format_level(level, standard)
+
+    def compress_image(self) -> None:
+        if self.current_image is None:
+            return
+        # 若图片长宽大于1000px则压缩减半
+        image = self.current_image
+        if image.shape[0] > 1000 or image.shape[1] > 1000:
+            image = cv2.resize(image, (image.shape[1] // 2, image.shape[0] // 2), interpolation=cv2.INTER_AREA)
+        _, buffer = cv2.imencode('.jpg', image, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
+        # self.current_image = frombuffer(buffer, dtype=uint8)
+        logging.info("图片压缩成功！")
             
-    def process_image(self, image: NDArray, level: str) -> tuple:
+    def process_image(self):
         """处理上传的图片"""
-        if image is None:
+        if  self.current_image is None:
             logging.warning("Frontend: 未上传图片")
             return "<h1>请上传图片</h3>","","",""
 
         logging.info("Frontend: 开始处理图片")
-        logging.info("----------------------------")
-        # 压缩图片
+        logging.info("----------------------------") 
 
-        # 若图片长宽大于1000px则压缩减半
-        if image.shape[0] > 1000 or image.shape[1] > 1000:
-            image = cv2.resize(image, (image.shape[1] // 2, image.shape[0] // 2), interpolation=cv2.INTER_AREA)
-        _, buffer = cv2.imencode('.jpg', image, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
-        self.img = frombuffer(buffer, dtype=uint8)
-
-        result = service.get_img_info(image, self.current_level)
+        result_gen = service.get_img_info(self.image_url, self.current_level)
+        for step in result_gen:
+            if step == "<END>":break
+            yield generate_processing_html(step), "", "", ""
+        result = next(result_gen)
         logging.info("----------------------------")
         logging.info(f"Frontend: 图片处理完成\n处理结果 - {result}")
 
@@ -83,8 +92,7 @@ class PicTalkApp:
             desc = desc.replace(word, f"**{word}**")
             translation = translation.replace(word_data["translation"], f"**{word_data['translation']}**")
 
-
-        return html_content, desc, translation, badges
+        yield html_content, desc, translation, badges
         
     
     def generate_conversation(self, chat_history: List,msg:str) -> Generator[str, None, None]:
@@ -119,22 +127,28 @@ class PicTalkApp:
         logging.info(f"Frontend: 单词标签生成完成 - {badges[:100]}")
         return badges
     
-    def generate_new_context(self, word: str,demo:gr.Blocks,request:gr.Request) -> Dict:
+    def generate_new_context(self, word: str,demo:gr.Blocks,request:gr.Request):
         """生成新语境"""
         logging.info("Frontend: 开始生成新语境")
         logging.info("----------------------------")
+        # 提示用户正在处理单词列表
+
         text_list = [w.get("text") for w in self.current_words if w.get("text")]
         if word:
             text_list.append(word)
+        
+        # 提示用户正在获取新语境
+        yield generate_processing_html("(0/2) - 正在获取新语境..."), ""
         context = service.get_new_context(text_list, self.current_level)
-        path = self._get_audio(context,demo,request)
-        self.context_list.append({"en":context,"cn":"","audio":path})
+        yield generate_processing_html("(1/2) - 正在获取音频..."), ""
+        path = self.get_audio(context, demo, request)
+        self.context_list.append({"en": context, "cn": "", "audio": path})
         html_content = generate_context_list_html(self.context_list)
         logging.info("----------------------------")
         logging.info(f"Frontend: 新语境生成完成 - {html_content}")
-        return html_content
+        yield html_content
     
-    def _get_audio(self,text:str,demo:gr.Blocks,request: gr.Request):
+    def get_audio(self,text:str,demo:gr.Blocks,request: gr.Request):
         logging.info("Frontend:开始获取音频")
         root = get_root_url(
             request=request, route_path="/gradio_api/queue/join", root_path=demo.root_path
@@ -144,6 +158,19 @@ class PicTalkApp:
     # 更新音频和图片URL
         url = f"{root}/gradio_api/file={path}"
         return url
+
+    def store_img(self,img:NDArray,demo:gr.Blocks,request: gr.Request):
+        if img is None:
+            return
+        self.current_image = img
+        self.compress_image()
+        root = get_root_url(
+            request=request, route_path="/gradio_api/queue/join", root_path=demo.root_path
+        )   
+        path = save_img_array_to_cache(self.current_image,demo.GRADIO_CACHE,"jpeg")
+    # 更新音频和图片URL
+        url = f"{root}/gradio_api/file={path}"
+        self.image_url = url
     
     def _format_level(self, level: Level, standard: str) -> str:
         """格式化水平显示"""
@@ -254,10 +281,15 @@ def create_interface():
             inputs=[level_test_input, level_standard],
             outputs=level_select
         )
+
+        def _handle_image_input(image_input:NDArray, req:gr.Request):
+            app.store_img(image_input, demo, req)
+            for i in app.process_image():
+                yield i
         
         image_input.change(
-            fn=app.process_image,
-            inputs=[image_input, level_select],
+            fn=_handle_image_input,
+            inputs=[image_input],
             outputs=[image_display,desc_en, desc_cn,word_badges]
         )
         

@@ -83,7 +83,7 @@ class ModelServiceDefaultImpl(ModelService):
 
         return level_mapping.get(example, Level.A1)  # 默认返回 Level.A1 如果没有匹配到
 
-    def get_img_info(self, img: NDArray, level: Level) -> dict:
+    def get_img_info(self, img: str|NDArray, level: Level) -> Generator[str | dict, None, None]:
         """
         Desc:
             Return the information of the image, including a description of the image and the words within it along with corresponding bounding boxes, based on the user's level.
@@ -91,30 +91,39 @@ class ModelServiceDefaultImpl(ModelService):
 
         Usecase:
             >>> img
-            "data:image;base64,/9j/..."
+            "https..."
             >>> get_img_info(img,Level.A1)
             {"desc":"Laptop bird dustbin cup coffee hit mobilephone" output:"A bird hit a laptop, spilling coffee from a cup. A mobilephone fell in the dustbin.","words":[("laptop",("123","456"),("126","467")),("cup",("53","534"),("86","486"))...]}
 
         """
-        base64_encoded_data = _nd_to_base64(img)
-        
+        is_base64 = not isinstance(img, str)
+        if is_base64:
+            img = _nd_to_base64(img)
         # 输出字典
         output_dict = {}
+        yield "(0/3) - 正在解析图片..."
 
         # Part1: image -> vl -> description
         prompt1 = prompt_descirbe_image()
         messages1 = [
-            {"role": "system", "content": [{"type": "text", "text": prompt1}]},
+            {
+                "role": "system",
+                "content": [{"type": "text", "text": "根据图片内容描述场景"}],
+            },
             {
                 "role": "user",
                 "content": [
-                    {"type": "image", "image": base64_encoded_data},
-                    {"type": "text", "text": "根据图片内容描述场景"},
+                    {
+                        "type": "image" if is_base64 else "image_url",
+                        "image" if is_base64 else "image_url": img,
+                    },
+                    {"type": "text", "text": prompt1},
                 ],
             },
         ]
         description_list_str = call_vl(messages1)
         description_list = level.name + "," + description_list_str
+        yield "(1/3) - 图片解析成功！正在提取对象..."
 
         # Part2: description_list -> qwen_finetuned -> sentences and words
         prompt_fix = prompt_extract_system()
@@ -124,7 +133,9 @@ class ModelServiceDefaultImpl(ModelService):
             + [{"role": "user", "content": description_list}]
         )
         info_dict_str = call_qwen_finetuned(message_fix)  # 中英文对应的字典
-        info_dict_str_cleaned = info_dict_str.strip("```json\n").strip()  # 去除字符串首尾的多余字符
+        info_dict_str_cleaned = info_dict_str.strip(
+            "```json\n"
+        ).strip()  # 去除字符串首尾的多余字符
         info_dict = json.loads(info_dict_str_cleaned)
 
         # 解析中英文单词
@@ -134,6 +145,7 @@ class ModelServiceDefaultImpl(ModelService):
         # 记录输出数据
         output_dict["desc"] = info_dict["desc_en"]
         output_dict["translation"] = info_dict["desc_cn"]
+        yield "(2/3) - 对象提取成功！正在生成检测框..."
 
         # Part3: words -> vl -> bboxes
 
@@ -142,20 +154,29 @@ class ModelServiceDefaultImpl(ModelService):
             {
                 "role": "system",
                 "content": [
-                    {"type": "text", "text": "You should print the bboxes of the image."}
+                    {
+                        "type": "text",
+                        "text": "You should print the bboxes of the image.",
+                    }
                 ],
             },
             {
                 "role": "user",
                 "content": [
-                    {"type": "image", "image": base64_encoded_data},
-                    {"type": "text", "text": prompt4 +"input objects:"+ str(en_list)},
+                    {
+                        "type": "image" if is_base64 else "image_url",
+                        "image" if is_base64 else "image_url": img,
+                    },
+                    {"type": "text", "text": prompt4 + "input objects:" + str(en_list)},
                 ],
             },
         ]
         bbox_str = call_vl(messages2)
         bbox_str_cleaned = bbox_str.strip("```json\n").strip()  # 去除json和换行符
-        bbox_list = eval(bbox_str_cleaned) # [['blue shirt',('100','200'),('560','665')]...]
+        bbox_list = eval(
+            bbox_str_cleaned
+        )  # [['blue shirt',('100','200'),('560','665')]...]
+        yield "(3/3) - 检测框生成成功！加载中..."
 
         # 解析检测框数据
         words_list = []
@@ -170,7 +191,8 @@ class ModelServiceDefaultImpl(ModelService):
         # 记录输出数据
         output_dict["words"] = words_list
 
-        return output_dict
+        yield "<END>"
+        yield output_dict
         """
             {
             "desc":"A bird hit a laptop, spilling coffee from a cup. A mobilephone fell in the dustbin.",
@@ -186,9 +208,11 @@ class ModelServiceDefaultImpl(ModelService):
       """
 
     def get_conversation(
-        self, conversation: list, level: Level, img: NDArray
+        self, conversation: list, level: Level, img: str | NDArray
     ) -> Generator[str, None, None]:
-        base64_encoded_data = _nd_to_base64(img)
+        is_base64 = not isinstance(img, str)
+        if is_base64:
+            img = _nd_to_base64(img)
 
         # 与vl模型进行对话
         messages = [
@@ -207,7 +231,12 @@ class ModelServiceDefaultImpl(ModelService):
         messages.append(
             {
                 "role": "user",
-                "content": [{"type": "image", "image": f"{base64_encoded_data}"}],
+                "content": [
+                    {
+                        "type": "image" if is_base64 else "image_url",
+                        "image" if is_base64 else "image_url": f"{img}",
+                    }
+                ],
             }
         )
 

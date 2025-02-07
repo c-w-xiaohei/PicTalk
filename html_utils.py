@@ -310,6 +310,33 @@ def generate_context_list_html(contexts_list: list) -> str:
 </style>
     '''
 
+def generate_processing_html(step: str) -> str:
+    """生成处理步骤的HTML提示信息。
+
+    参数:
+        step (str): 当前处理的步骤描述。
+
+    返回值:
+        str: 生成的HTML代码，用于提示用户当前处理步骤。
+    """
+    return f"""
+    <div class="processing-step">
+        <p>{step}</p>
+    </div>
+    """ + r"""
+<style>
+    .processing-step {
+        background-color: var(--block-background-fill); 
+        padding: 10px;
+        border: 1px solid var(--block-border-color); 
+        border-radius: 5px;
+        margin: 10px 0;
+        text-align: center;
+        color: var(--body-text-color); 
+    }
+</style>
+    """
+
 def test_generate_image_html():
     # 1. 读取图片并转换为NDArray
     image_path = "/mnt/workspace/test.png"

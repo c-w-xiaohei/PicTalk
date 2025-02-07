@@ -24,6 +24,8 @@ import multiprocessing
 import logging
 import copy
 
+from aspect import exception_to_logs
+
 logger = logging.getLogger("gradio")
 
 
@@ -63,8 +65,6 @@ def _get_model(requested_model: Model) -> str:
 
 """
 API_KEY = getenv("ACCESS_TOKEN", "")
-if not API_KEY:
-    raise ValueError("ACCESS_TOKEN 未配置")
 
 
 """
@@ -100,7 +100,7 @@ def _run_in_process(func, queue, *args, **kwargs):
 def call_qwen_finetuned(
     messages: list, stream: bool = False
 ) -> str | Generator[str, None, None]:
-    logger.debug(
+    logger.info(
         f"""
 >>>>>>>>>>>>>>>>>>> 调用微调模型:\n @messages: {json.dumps(messages, indent=4, ensure_ascii=False)}\n @stream: {stream}\n{'---'*10}"""
     )
@@ -169,7 +169,7 @@ def call_vl(messages: dict) -> str:
 
     # 将处理后的 messages 转换为 JSON 字符串并记录日志
     log_msg = json.dumps(log_messages, indent=4, ensure_ascii=False)
-    logger.debug(
+    logger.info(
         f"""
 >>>>>>>>>>>>>>>>>>> 调用视觉模型:\n @messages: {log_msg}\n{"---"*10}"""
     )
@@ -189,11 +189,10 @@ def call_vl(messages: dict) -> str:
             return _call_vl(messages)
         else:
              return _call_vl_inference(messages)
-
-
+ 
 def call_tts(text: str) -> bytes:
     torch.cuda.empty_cache()
-    logger.debug(
+    logger.info(
         f"""
 >>>>>>>>>>>>>>>>>>> 调用音频模型:\n @text: {text}\n{"---"*10}"""
     )
@@ -269,7 +268,7 @@ def _call_qwen_finetuned(
             # 直接生成响应
             logger.info("微调大模型开始推理...")
 
-            generated_ids = model.generate(**model_inputs, max_new_tokens=512)
+            generated_ids = model.generate(**model_inputs, max_new_tokens=1024)
 
             # 提取生成的文本
             generated_ids = [
@@ -280,7 +279,7 @@ def _call_qwen_finetuned(
                 0
             ]
 
-            logger.debug(
+            logger.info(
                 f"""
 {"---"*10}\n @response: {response}\n<<<<<<<<<<<<<<<<<<< 微调大模型推理完毕!"""
             )

@@ -14,5 +14,9 @@ def exception_to_logs(logger:logging.Logger, custom_message:str=None):
                     logger.error(f"{custom_message} - Exception occurred in '{func.__name__}': {str(e)}\n{traceback.format_exc()}")
                 else:
                     logger.error(f"Exception occurred in {func.__name__}: {str(e)}]n{traceback.format_exc()}")
+                    raise
         return wrapper
     return decorator
+
+def log_error(logger:logging.Logger,e:Exception,custom_message:str=""):
+    logger.error(f"{custom_message} - {str(e)}\n{traceback.format_exc()}")

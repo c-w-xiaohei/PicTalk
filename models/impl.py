@@ -1,3 +1,4 @@
+import logging
 from numpy.typing import NDArray
 from models.interface import Level, ModelService
 from models.model_call.models import call_qwen_finetuned, call_vl, call_tts
@@ -21,6 +22,9 @@ import base64
 import io
 import json
 
+from aspect import exception_to_logs
+
+logger = logging.getLogger("gradio")
 
 def _nd_to_base64(img: NDArray):
     # 先将NDArray转成base64编码的字符串，便于输入vl模型
@@ -82,7 +86,7 @@ class ModelServiceDefaultImpl(ModelService):
         }
 
         return level_mapping.get(example, Level.A1)  # 默认返回 Level.A1 如果没有匹配到
-
+        
     def get_img_info(self, img: str|NDArray, level: Level) -> Generator[str | dict, None, None]:
         """
         Desc:

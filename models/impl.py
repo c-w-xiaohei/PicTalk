@@ -26,6 +26,7 @@ from aspect import exception_to_logs
 
 logger = logging.getLogger("gradio")
 
+
 def _nd_to_base64(img: NDArray):
     # 先将NDArray转成base64编码的字符串，便于输入vl模型
     # 根据数组形状猜测色彩模式
@@ -86,8 +87,10 @@ class ModelServiceDefaultImpl(ModelService):
         }
 
         return level_mapping.get(example, Level.A1)  # 默认返回 Level.A1 如果没有匹配到
-        
-    def get_img_info(self, img: str|NDArray, level: Level) -> Generator[str | dict, None, None]:
+
+    def get_img_info(
+        self, img: str | NDArray, level: Level
+    ) -> Generator[str | dict, None, None]:
         """
         Desc:
             Return the information of the image, including a description of the image and the words within it along with corresponding bounding boxes, based on the user's level.
@@ -121,7 +124,10 @@ class ModelServiceDefaultImpl(ModelService):
                         "type": "image" if is_base64 else "image_url",
                         "image" if is_base64 else "image_url": img,
                     },
-                    {"type": "text", "text":"用中文生成输入图片内容的详细描述和图片中所有实体的描述列表" },
+                    {
+                        "type": "text",
+                        "text": "用中文生成图片内容的详细描述和图片中所有实体的描述列表",
+                    },
                 ],
             },
         ]
@@ -263,15 +269,17 @@ class ModelServiceDefaultImpl(ModelService):
         generator = call_qwen_finetuned(message, True)
         return generator
 
-    def get_new_context(self, words: List[str], level: Level) -> str:
+    def get_new_context(self, words: List[str], level: Level) -> List:
         prompt = prompt_context()
         Add = str(level) + "," + str(words)
         message = [
             {"role": "system", "content": prompt},
             {"role": "user", "content": Add},
         ]
-        context = call_qwen_finetuned(message)
-        return context
+        context:str = call_qwen_finetuned(message)
+        context_cleaned = context.strip("```python")
+        res = eval(context_cleaned)
+        return res
 
     def get_audio(self, text: str) -> bytes:
         wav = call_tts(text)

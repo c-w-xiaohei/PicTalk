@@ -5,6 +5,8 @@ import json
 import logging
 
 logger = logging.getLogger("gradio")
+
+
 def generate_image_html(words: list, current_image: NDArray) -> str:
     """生成包含图片及标注的HTML代码。
 
@@ -20,26 +22,24 @@ def generate_image_html(words: list, current_image: NDArray) -> str:
     """
     logger.debug(f"Frontend:生成图片及标注html代码中\n     @words: {words}\n")
 
-
     # 转换颜色空间到 BGR (OpenCV 默认)
     current_image_bgr = cv2.cvtColor(current_image, cv2.COLOR_RGB2BGR)
-    
+
     # 压缩图片
     # resized_image = cv2.resize(current_image_bgr, (400,400))
     resized_image = current_image_bgr
-    _, buffer = cv2.imencode('.jpg', resized_image, [cv2.IMWRITE_JPEG_QUALITY, 75])
+    _, buffer = cv2.imencode(".jpg", resized_image, [cv2.IMWRITE_JPEG_QUALITY, 75])
     # 将压缩后的图片转为base64编码
     img_base64 = base64.b64encode(buffer).decode("utf-8")
     img_src = f"data:image/png;base64,{img_base64}"
 
-    
     # 将压缩后的图片转为base64编码
     img_base64 = base64.b64encode(buffer).decode("utf-8")
     img_src = f"data:image/jpeg;base64,{img_base64}"
 
     # 生成单词badge，包含翻译内容
     badges = "".join(
-        f'<div class="badge" title="{word["translation"]}">{word["text"]}</div>' 
+        f'<div class="badge" title="{word["translation"]}">{word["text"]}</div>'
         for word in words
     )
 
@@ -52,7 +52,7 @@ def generate_image_html(words: list, current_image: NDArray) -> str:
                 float(word["location"][1][0]) / 1000,
                 float(word["location"][1][1]) / 1000,
             ],
-            "translation": word["translation"]
+            "translation": word["translation"],
         }
         for word in words
         if word.get("text") and word.get("translation") and word.get("location")
@@ -169,7 +169,7 @@ def generate_image_html(words: list, current_image: NDArray) -> str:
 </style>
     """
     # 将HTML内容转换为data URI
-    html_encoded = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
+    html_encoded = base64.b64encode(html_content.encode("utf-8")).decode("utf-8")
     return f"""
     <iframe 
         src="data:text/html;base64,{html_encoded}" 
@@ -177,7 +177,10 @@ def generate_image_html(words: list, current_image: NDArray) -> str:
     ></iframe>
     """
 
-def generate_badge_html(words: list,) -> str:
+
+def generate_badge_html(
+    words: list,
+) -> str:
     """生成包含图片及标注的HTML代码。
 
     参数:
@@ -190,10 +193,7 @@ def generate_badge_html(words: list,) -> str:
         str: 生成的HTML代码，用于在网页中显示单词信息。
     """
     # 生成单词badge，包含翻译内容
-    badges = "".join(
-        f'<div class="badge">{word["text"]}</div>' 
-        for word in words
-    )
+    badges = "".join(f'<div class="badge">{word["text"]}</div>' for word in words)
 
     # 生成HTML代码
     return f"""
@@ -237,7 +237,7 @@ def generate_context_list_html(contexts_list: list) -> str:
     """
     logger.debug(f"Frontend:生成语境列表中\n     @context_list: {contexts_list}")
     context_items = "".join(
-        f'''
+        f"""
         <div class="context-item">
             <div class="context-text">
                 <span class="english-text">{context["en"]}</span>
@@ -247,14 +247,16 @@ def generate_context_list_html(contexts_list: list) -> str:
             </div>
             <button class="audio-button" onclick='new Audio("{context["audio"]}").play()'>🔊</button>
         </div>
-        '''
+        """
         for context in contexts_list
     )
-    return f'''
+    return (
+        f"""
     <div class="context-list">
         {context_items}
     </div>
-    ''' + r'''
+    """
+        + r"""
     <style>
     .context-list {
         display: flex;
@@ -306,7 +308,9 @@ def generate_context_list_html(contexts_list: list) -> str:
         box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3);
     }
 </style>
-    '''
+    """
+    )
+
 
 def generate_processing_html(step: str) -> str:
     """生成处理步骤的HTML提示信息。
@@ -317,11 +321,13 @@ def generate_processing_html(step: str) -> str:
     返回值:
         str: 生成的HTML代码，用于提示用户当前处理步骤。
     """
-    return f"""
+    return (
+        f"""
     <div class="processing-step">
         <p>{step}</p>
     </div>
-    """ + r"""
+    """
+        + r"""
 <style>
     .processing-step {
         background-color: var(--block-background-fill); 
@@ -334,6 +340,8 @@ def generate_processing_html(step: str) -> str:
     }
 </style>
     """
+    )
+
 
 def test_generate_image_html():
     # 1. 读取图片并转换为NDArray
@@ -378,9 +386,10 @@ def test_generate_image_html():
 
     # 3. 调用函数生成HTML
     html_output = generate_image_html(words, current_image)
-    print('success!')
-    with open('test.html', 'w', encoding='utf-8') as file:
+    print("success!")
+    with open("test.html", "w", encoding="utf-8") as file:
         file.write(html_output)
+
 
 def test_context():
     """演示如何使用 generate_context_list_html 函数."""
@@ -391,9 +400,10 @@ def test_context():
     ]
 
     html_output = generate_context_list_html(contexts)
-    print('success!')
-    with open('test2.html', 'w', encoding='utf-8') as file:
+    print("success!")
+    with open("test2.html", "w", encoding="utf-8") as file:
         file.write(html_output)
+
 
 if __name__ == "__main__":
     test_generate_image_html()

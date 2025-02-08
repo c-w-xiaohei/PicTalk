@@ -69,14 +69,14 @@ class ModelService(ABC):
         pass
 
     @abstractmethod
-    def get_new_context(self, words: List[str], level: 'Level') -> str:
+    def get_new_context(self, words: List[str], level: 'Level') -> List[str]:
         """
         Desc:
             Generate a new context description using the given words, based on the user's level.
             
         Usecase:
             >>> get_new_context(["laptop", "cup", "mobilephone"], Level.A1)
-            "There is a laptop, a cup, and a mobile phone."
+            "[There is a laptop, a cup, and a mobile phone.,中文翻译]"
         """
         pass
 

@@ -12,7 +12,7 @@ def prompt_descirbe_image():
 def prompt_extract_system():
     natural_message = '''你是一名归纳师以及英语教师。
     你需要根据**描述列表**和**CEFR英语等级**提取：
-    1.实体单词列表(要求根据CEFR等级提取,简洁,尽量提取单个词汇,并配上中文翻译)
+    1.实体单词列表(要求根据CEFR等级提取,简洁,尽量提取单个词汇,并配上中文翻译;不超过6个词汇)
     2.场景描述片段(内容要求:根据CEFR等级,使用1中提取的单词,严格遵循描述列表中的描述,必要时辅以补充,并配上自然的中文翻译;文风要求:简短精炼,语言优美)
     最终输出 json 字符串,不带其他 json 格式之外的字符
     '''
@@ -37,7 +37,9 @@ def prompt_translate():
     return natural_message
 # Context
 def prompt_context():
-    natural_message = '你是一名场景描述专家，现在请你根据单词列表，还有CERF英语等级，生成一段语句进行场景描述。如：input:"A2,laptop bird dustbin cup coffee hit mobilephone" output:"A bird hit a laptop, spilling coffee from a cup. A mobilephone fell in the dustbin.'
+    natural_message = '''你是一名场景描述专家，现在请你根据单词列表，还有CERF英语等级，生成一段语句进行场景描述及其翻译。
+    示例输入:A2,laptop bird dustbin cup coffee hit mobilephone"
+    示例输出(必须严格按照列表生成，不能有其他信息):["A bird hit a laptop, spilling coffee from a cup. A mobilephone fell in the dustbin.","一只鸟撞到了笔记本电脑，把杯子里的咖啡洒了出来。一部手机掉在了垃圾箱里"]'''
     return natural_message
 
 

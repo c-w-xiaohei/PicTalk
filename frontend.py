@@ -26,25 +26,15 @@ from os import getenv
 """
 logger = logging.getLogger("gradio")
 
+formatter = logging.Formatter(fmt='%(levelname)s - %(asctime)s - %(filename)s - %(funcName)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 console = logging.StreamHandler()
+
 console.setLevel(logging.ERROR)
+console.setFormatter(formatter)
 
-handlers:Dict[str,MemoryHandler]  = {}
-def initialize_handler(request: gr.Request):
-    # 创建MemoryHandler来缓存日志
-    memory_handler = MemoryHandler(capacity=1000, flushLevel=logging.ERROR,target=console,flushOnClose=False)
-    handlers[request.session_hash] = memory_handler
-    logger.addHandler(memory_handler)
-    logger.info("Memory Handler 配置成功！")
+memory_handler = MemoryHandler(capacity=1000, flushLevel=logging.ERROR,target=console,flushOnClose=False)
+logger.addHandler(memory_handler)
 
-def cleanup_handler(request: gr.Request):
-    session_hash = request.session_hash
-    if session_hash in handlers:
-        handler = handlers[session_hash]
-        handler.close()
-        logger.removeHandler(handler)
-        del handlers[session_hash]
-        logger.info("Memory Handler 卸载成功！")
 
 
 # 配置字典
@@ -131,7 +121,7 @@ def create_interface():
                             # 单词badge区域
                             with gr.Row():
                                 with gr.Column(scale=8):
-                                    word_badges = gr.HTML()
+                                    word_badges = gr.HTML("<h1>请上传图片</h1>")
                                 with gr.Column(scale=1):
                                     word_input = gr.Textbox(
                                         label="输入单词",
@@ -139,7 +129,7 @@ def create_interface():
                                     )
                                     context_button = gr.Button("生成语境")
                             # 语境列表
-                            context_list = gr.HTML()
+                            context_list = gr.HTML("")
         
         # 交互逻辑
         msg.submit(
@@ -181,15 +171,15 @@ def create_interface():
         )
         
         def _handel_context_button(state: gr.State,req: gr.Request):
-            return generate_new_context("", demo, req, state)
+            for i in generate_new_context("", demo, req, state):
+                yield i
         
         context_button.click(
             fn=_handel_context_button,
-            inputs=[state],
+            inputs=state,
             outputs=context_list
         )
-        demo.load(initialize_handler)
-        demo.unload(cleanup_handler)
+        demo.unload(lambda : memory_handler.buffer.clear())
     return demo
 
 @exception_to_logs(logger, custom_message="测试水平时出现错误")
@@ -219,7 +209,8 @@ def process_image(state: StateType):
     """处理上传的图片"""
     try:
         if state.current_image is None:
-            return "<h1>请上传图片</h3>", "", "", ""
+            yield "<h1>请上传图片</h1>", "", "", ""
+            return
 
         logger.info("Frontend: 开始处理图片")
         logger.info("----------------------------") 
@@ -260,11 +251,13 @@ def generate_conversation(chat_history: List, msg: str, state: StateType) -> Gen
     try:
         if state.current_image is None:
             logger.warning("Frontend: 未上传图片，无法生成对话")
-            yield {"role": "assistant", "content": "请先上传图片"}, ""
+            yield [{"role": "assistant", "content": "请先上传图片"}], ""
             return
         
         logger.info("Frontend: 开始生成对话")
         logger.info("----------------------------")
+        if str(chat_history) == str([{"role": "assistant", "content": "请先上传图片"}]):
+            chat_history = []
         if msg:
             chat_history.append({"role": "user", "content": msg})
         logger.info(f"@chat_history: {chat_history}")
@@ -300,15 +293,18 @@ def generate_new_context(word: str, demo: gr.Blocks, request: gr.Request, state:
         logger.info("Frontend: 开始生成新语境")
         logger.info("----------------------------")
         # 提示用户正在处理单词列表
+        if state.current_image is None:
+            yield "<h1>未上传图片</h1>"
+            return
 
         text_list = [w.get("text") for w in state.current_words if w.get("text")]
         if word:
             text_list.append(word)
         
         # 提示用户正在获取新语境
-        yield generate_processing_html("(0/2) - 正在获取新语境..."), ""
+        yield generate_processing_html("(0/2) - 正在获取新语境...")
         context = service.get_new_context(text_list, state.current_level)
-        yield generate_processing_html("(1/2) - 正在获取音频..."), ""
+        yield generate_processing_html("(1/2) - 正在获取音频...")
         path = get_audio(context, demo, request)
         state.context_list.append({"en": context, "cn": "", "audio": path})
         html_content = generate_context_list_html(state.context_list)

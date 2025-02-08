@@ -112,7 +112,7 @@ class ModelServiceDefaultImpl(ModelService):
         messages1 = [
             {
                 "role": "system",
-                "content": [{"type": "text", "text": "根据图片内容描述场景"}],
+                "content": [{"type": "text", "text": prompt1}],
             },
             {
                 "role": "user",
@@ -121,7 +121,7 @@ class ModelServiceDefaultImpl(ModelService):
                         "type": "image" if is_base64 else "image_url",
                         "image" if is_base64 else "image_url": img,
                     },
-                    {"type": "text", "text": prompt1},
+                    {"type": "text", "text":"用中文生成输入图片内容的详细描述和图片中所有实体的描述列表" },
                 ],
             },
         ]

@@ -5,7 +5,7 @@ def prompt_judge():
 
 # Image: Part 1
 def prompt_descirbe_image():
-    natural_message = '用中文生成输入图片内容的详细描述和图片中所有实体的描述列表。输出json格式的字符串，例如：{"global_caption":"详细描述", "caption_list":["实体A的描述", "实体B的描述", "实体C的描述", ...直到所有实体都被描述完]}'
+    natural_message = '描述图片,输出json格式的字符串，{"global_caption":"详细描述", "caption_list":["实体A的描述", "实体B的描述", "实体C的描述", ...直到所有实体都被描述完]}'
     return natural_message 
 
 # Image: Part 2

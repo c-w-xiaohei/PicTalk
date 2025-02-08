@@ -60,6 +60,7 @@ def _get_model(requested_model: Model) -> str:
     return model_path
 
 
+
 """
 - API 配置
 
@@ -96,6 +97,14 @@ def _run_in_process(func, queue, *args, **kwargs):
     except Exception as e:
         queue.put(e)
 
+"""
+- 初始化
+
+"""
+if not API_KEY:
+    _get_model(Model.VL)
+_get_model(Model.INSTURCT)
+_get_model(Model.TTS)
 
 def call_qwen_finetuned(
     messages: list, stream: bool = False
@@ -307,7 +316,7 @@ def _call_qwen_finetuned(
             f"model_call 异常: 微调大模型调调用过程显存不足，请检查是否使用了GPU：\n{e}"
         )
     except Exception as e:
-        raise Exception(f"model_call 异常: 微调大模型调用过程中出现异常：\n{e}\n{e.with_traceback(tb)}")
+        raise Exception(f"model_call 异常: 微调大模型调用过程中出现异常：\n{e}")
 
 def _call_vl_inference(messages:list)->str:
     """
@@ -369,7 +378,7 @@ def _call_vl_inference(messages:list)->str:
             stream=False,
         )
 
-        output_text = response["choices"][0]["message"]["content"]
+        output_text = response.choices[0].message.content
 
         logger.info(
             f"""
